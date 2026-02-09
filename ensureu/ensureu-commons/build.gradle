@@ -1,0 +1,37 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Shared utilities and services for EnsureU platform'
+
+dependencies {
+    // Spring Boot Core (using platform for version management)
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${springBootVersion}")
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Logging
+    implementation 'org.slf4j:slf4j-api'
+
+    // Jackson for JSON
+    implementation "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}"
+
+    // Google Cloud Storage
+    implementation "com.google.api-client:google-api-client:${versions.googleApiClient}"
+    implementation "com.google.apis:google-api-services-storage:${versions.googleStorage}"
+    implementation "com.google.http-client:google-http-client-jackson2:${versions.googleHttpJackson}"
+
+    // ClickSend for email/SMS
+    implementation "com.github.clicksend:clicksend-java-client:${versions.clicksend}"
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${versions.lombok}"
+    annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+jar {
+    enabled = true
+}

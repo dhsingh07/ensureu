@@ -1,0 +1,4 @@
+rootProject.name = 'ensureu-parent'
+
+include 'ensureu-commons'
+include 'ensureu-service'
