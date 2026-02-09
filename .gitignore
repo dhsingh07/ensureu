@@ -1,0 +1,275 @@
+# =============================================================================
+# EnsureU Project - Git Ignore
+# =============================================================================
+
+# =============================================================================
+# Environment & Secrets (CRITICAL - Never commit these!)
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+credentials.json
+service-account*.json
+secrets/
+**/application-local.properties
+**/application-prod.properties
+personal.local
+*.local
+
+# =============================================================================
+# Java / Maven / Spring Boot
+# =============================================================================
+# Compiled class files
+*.class
+
+# Maven
+**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# Spring Boot
+*.log
+spring-boot-devtools.properties
+
+# =============================================================================
+# Node.js / Next.js / Frontend
+# =============================================================================
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# =============================================================================
+# Python / FastAPI
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env.local
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints
+
+# =============================================================================
+# Docker
+# =============================================================================
+# Docker environment overrides
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Data volumes (local development)
+data/
+mongodb_data/
+
+# =============================================================================
+# IDEs and Editors
+# =============================================================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.classpath
+.project
+.settings/
+.metadata/
+bin/
+
+# NetBeans
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# =============================================================================
+# Operating Systems
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+
+# =============================================================================
+# Logs and Temporary Files
+# =============================================================================
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+
+# Nginx logs
+nginx/logs/
+
+# =============================================================================
+# Build Artifacts
+# =============================================================================
+*.jar
+!gradle-wrapper.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# =============================================================================
+# SSL Certificates (for local development)
+# =============================================================================
+nginx/ssl/
+ssl/
+certs/
+
+# =============================================================================
+# Database Backups (local)
+# =============================================================================
+backups/
+*.dump
+*.sql
+
+# =============================================================================
+# Test & Coverage Reports
+# =============================================================================
+test-results/
+test-output/
+surefire-reports/
+failsafe-reports/
+
+# =============================================================================
+# Misc
+# =============================================================================
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Claude Code
+.claude/

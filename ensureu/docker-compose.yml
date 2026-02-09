@@ -1,0 +1,104 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: ensureu-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-ChangeThisPassword123}
+      MONGO_INITDB_DATABASE: assessu
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - ensureu-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/assessu --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ensureu-app
+    restart: unless-stopped
+    ports:
+      - "8282:8282"
+    environment:
+      # MongoDB Configuration
+      SPRING_DATA_MONGODB_URI: mongodb://appUser:${MONGO_APP_PASSWORD:-AppPassword123}@mongodb:27017/assessu
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-YourSuperSecretJWTKeyChangeInProduction}
+      JWT_EXPIRYTIME: 3600000
+
+      # Server Configuration
+      SERVER_PORT: 8282
+      SERVER_SERVLET_CONTEXT_PATH: /api
+
+      # File Upload Configuration
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 10MB
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 10MB
+
+      # Email Configuration (update with your SMTP details)
+      SPRING_MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
+
+      # Google OAuth
+      GOOGLE_TOKEN_VALIDATE_URL: https://oauth2.googleapis.com/tokeninfo?id_token=
+
+      # Facebook OAuth
+      FACEBOOK_TOKEN_VALIDATE_URL: https://graph.facebook.com/me?fields=id,name,email&access_token=
+
+      # Allow circular references (as per your config)
+      SPRING_MAIN_ALLOW_CIRCULAR_REFERENCES: true
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - app_uploads:/app/uploads
+    networks:
+      - ensureu-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8282/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  nginx:
+    image: nginx:alpine
+    container_name: ensureu-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - ensureu-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  app_uploads:
+    driver: local
+
+networks:
+  ensureu-network:
+    driver: bridge

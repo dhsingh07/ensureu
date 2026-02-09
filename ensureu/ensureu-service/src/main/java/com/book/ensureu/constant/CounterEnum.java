@@ -1,0 +1,62 @@
+package com.book.ensureu.constant;
+
+/**
+ * @author dharmendra.singh
+ *
+ */
+public enum CounterEnum {
+
+	USER, CUSTOMER, PRACTICEPAPER, COURSES, PRACTICEPAPERCOLLECTION, TESTPAPERCOLLECTION,
+	TESTPAPER, FREEPAPER, FREEPAPERCOLLECTION, PAPERMETADATA,PASTPAPER,QUIZPAPER,
+	SUBSCRIPTION,USERENTITLEMENT,PRICEMETADATA,USERPASS,PURCHASESUBSCRIPTION,USERAUDIT,
+	TEST_SERIES,PURCHASE_TEST_SERIES;
+
+	@Override
+	public String toString() {
+		switch (this) {
+		case USER:
+			return "USER";
+		case CUSTOMER:
+			return "CUSTOMER";
+		case PRACTICEPAPER:
+			return "PRACTICEPAPER";
+		case COURSES:
+			return "COURSES";
+		case PRACTICEPAPERCOLLECTION:
+			return "PRACTICEPAPERCOLLECTION";
+		case TESTPAPERCOLLECTION:
+			return "TESTPAPERCOLLECTION";
+		case TESTPAPER:
+			return "TESTPAPER";
+		case FREEPAPER:
+			return "FREEPAPER";
+		case FREEPAPERCOLLECTION:
+			return "FREEPAPERCOLLECTION";
+		case PAPERMETADATA:
+			return "PAPERMETADATA";
+		case SUBSCRIPTION:
+			return "SUBSCRIPTION";
+		case USERENTITLEMENT:
+			return "USERENTITLEMENT";
+		case PRICEMETADATA:
+			return "PRICEMETADATA";	
+		case USERPASS:
+			return "USERPASS";
+		case PURCHASESUBSCRIPTION:
+			return "PURCHASESUBSCRIPTION";
+		case PASTPAPER:
+			return "PASTPAPER";
+		case QUIZPAPER:
+			return "QUIZPAPER";
+		case USERAUDIT:
+			return "USERAUDIT";
+		case TEST_SERIES:
+			return "TEST SERIES";
+        case PURCHASE_TEST_SERIES:
+			return "PURCHASE TEST SERIES";
+
+		default:
+			throw new IllegalArgumentException();
+		}
+	}
+}

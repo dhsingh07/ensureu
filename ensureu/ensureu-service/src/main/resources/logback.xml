@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--  Default properties-->
+    <property scope="LOCAL" name="DEFAULT_LOGGING_FILE_PATH" value="/tmp" />
+    <property scope="LOCAL" name="DEFAULT_LOGGING_MAX_HISTORY" value="30" />
+    <property scope="LOCAL" name="DEFAULT_LOGGING_MAX_FILE_SIZE" value="20MB" />
+
+    <!-- Overridable log directory -->
+    <!--<property name="LOGGING_FILE_PATH" value="/var/log/ensureu" />-->
+    <property name="LOGGING_FILE_PATH" value="/tmp/ensureu" />
+    
+
+    <appender name="FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOGGING_FILE_PATH:-${DEFAULT_LOGGING_FILE_PATH}}/ensureU.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>[%X{requestId}][%5p][%d{"yyyy-MM-dd HH:mm:ss,SSS"}][%.10thread] %logger{16}: %m %n</pattern>
+            <charset>utf8</charset>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- rollover daily -->
+            <fileNamePattern>${LOGGING_FILE_PATH:-${DEFAULT_LOGGING_FILE_PATH}}/ensureU.%d{yyyy-MM-dd}.%i.log.gz
+            </fileNamePattern>
+            <maxHistory>${LOGGING_MAX_HISTORY:-${DEFAULT_LOGGING_MAX_HISTORY}}</maxHistory>
+            <timeBasedFileNamingAndTriggeringPolicy
+                    class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${LOGGING_MAX_FILE_SIZE:-${DEFAULT_LOGGING_MAX_FILE_SIZE}}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+
+    </appender>
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>10000</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="FILE" />
+    </appender>
+
+    <root level="DEBUG">
+        <appender-ref ref="ASYNC_FILE"/>
+    </root>
+</configuration>
