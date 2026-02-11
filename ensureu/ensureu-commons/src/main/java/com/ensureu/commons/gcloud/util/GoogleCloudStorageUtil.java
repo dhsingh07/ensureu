@@ -26,53 +26,89 @@ import com.google.api.services.storage.model.StorageObject;
 public class GoogleCloudStorageUtil {
 
 	private static Storage storageService;
-	
+	private static boolean initialized = false;
+	private static boolean available = false;
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(GoogleCloudStorageUtil.class.getName());
 
 	static String APPLICATION_NAME = "EnsureU";
 	static String RESOURCE_FILE_NAME = "credentials.json";
 
-	static {
-		if(storageService==null)
+	// Lazy initialization - don't fail on startup if credentials not present
+	private static synchronized void ensureInitialized() {
+		if (initialized) {
+			return;
+		}
+		initialized = true;
+		try {
 			storageService = buildStorage();
+			available = (storageService != null);
+			if (available) {
+				LOGGER.info("Google Cloud Storage initialized successfully");
+			}
+		} catch (Exception e) {
+			LOGGER.warn("Google Cloud Storage not available: {}. Image upload to GCS will be disabled.", e.getMessage());
+			available = false;
+		}
 	}
 
 	private static Storage buildStorage() {
 		try {
+			ClassPathResource classPathResource = new ClassPathResource(RESOURCE_FILE_NAME);
+
+			// Check if credentials file exists
+			if (!classPathResource.exists()) {
+				LOGGER.warn("GCS credentials file '{}' not found in classpath. GCS features disabled.", RESOURCE_FILE_NAME);
+				return null;
+			}
+
 			HttpTransport transport = GoogleNetHttpTransport.newTrustedTransport();
 			JsonFactory jsonFactory = new JacksonFactory();
-			ClassPathResource classPathResource=new ClassPathResource(RESOURCE_FILE_NAME);
-			LOGGER.info("classPathResource "+classPathResource);
-			GoogleCredential credential =null;
-			if(classPathResource!=null) {
-			InputStream inputStream=classPathResource.getInputStream();
-			credential = // GoogleCredential.getApplicationDefault(transport, jsonFactory);
-					GoogleCredential.fromStream(
-							inputStream, transport,
-							jsonFactory); // for Local
-		
-			if (credential!=null && credential.createScopedRequired()) {
-				LOGGER.info("credential "+credential);
+
+			LOGGER.info("Loading GCS credentials from: {}", classPathResource);
+
+			InputStream inputStream = classPathResource.getInputStream();
+			GoogleCredential credential = GoogleCredential.fromStream(inputStream, transport, jsonFactory);
+
+			if (credential != null && credential.createScopedRequired()) {
+				LOGGER.info("GCS credential loaded successfully");
 				Collection<String> scopes = StorageScopes.all();
 				credential = credential.createScoped(scopes);
-			}else {
-				LOGGER.error("google bucket connection failed");
+			} else {
+				LOGGER.error("Failed to create scoped GCS credential");
+				return null;
 			}
-			}
-			return new Storage.Builder(transport, jsonFactory, credential).setApplicationName(APPLICATION_NAME).build();
+
+			return new Storage.Builder(transport, jsonFactory, credential)
+					.setApplicationName(APPLICATION_NAME)
+					.build();
 		} catch (Exception ex) {
-			throw new RuntimeException("Exception while building cloud storage service", ex);
+			LOGGER.error("Exception while building cloud storage service: {}", ex.getMessage());
+			return null;
 		}
 	}
-	
+
+	public boolean isAvailable() {
+		ensureInitialized();
+		return available;
+	}
 
 	public void deleteObjectFromBucket(String bucketName, String filename) throws Exception {
+		ensureInitialized();
+		if (!available) {
+			throw new UnsupportedOperationException("Google Cloud Storage is not configured");
+		}
 		Delete deleteRequest = storageService.objects().delete(bucketName, filename);
 		deleteRequest.execute();
 	}
 
 	public String uploadObjectInBucket(String bucketName, MultipartFile file, String filename, String contentType)
 			throws Exception {
+		ensureInitialized();
+		if (!available) {
+			LOGGER.warn("GCS not available, cannot upload file: {}", filename);
+			return null;
+		}
 		InputStreamContent contentStream = new InputStreamContent(contentType, file.getInputStream());
 		contentStream.setLength(file.getBytes().length);
 		StorageObject objectMetadata = new StorageObject()
