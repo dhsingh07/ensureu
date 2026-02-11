@@ -44,5 +44,5 @@ EXPOSE 8282
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8282/api/actuator/health || exit 1
 
-# Run the application
-ENTRYPOINT ["java", "-Xms256m", "-Xmx1g", "-jar", "app.jar"]
+# Run the application with optimized memory settings
+ENTRYPOINT ["java", "-Xms128m", "-Xmx512m", "-XX:MaxMetaspaceSize=256m", "-XX:+UseG1GC", "-XX:+UseStringDeduplication", "-jar", "app.jar"]
