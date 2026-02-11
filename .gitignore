@@ -133,8 +133,10 @@ docker-compose.override.yml
 docker-compose.local.yml
 
 # Data volumes (local development)
-data/
+/data/
 mongodb_data/
+# But don't ignore Java source data packages
+!**/src/**/data/
 
 # =============================================================================
 # IDEs and Editors
