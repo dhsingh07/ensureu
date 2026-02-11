@@ -20,8 +20,8 @@ COPY ensureu-service/src ensureu-service/src
 # Build the application
 RUN mvn clean package -DskipTests
 
-# Stage 2: Runtime image
-FROM eclipse-temurin:11-jre
+# Stage 2: Runtime image (use Java 17 for better compatibility)
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
