@@ -36,7 +36,9 @@ services:
         condition: service_healthy
     environment:
       - SIMPLE_DATA_MONGODB_URI=mongodb://${MONGO_USER:-ensureu}:${MONGO_PASSWORD:-Ensureu%40india123}@mongodb:27017/ensureu?authSource=ensureu
+      - SPRING_DATA_MONGODB_URI=mongodb://${MONGO_USER:-ensureu}:${MONGO_PASSWORD:-Ensureu%40india123}@mongodb:27017/ensureu?authSource=ensureu
       - SPRING_PROFILES_ACTIVE=production
+      - MANAGEMENT_HEALTH_MAIL_ENABLED=false
       - AI_SERVICE_URL=http://ai-service:8000
       - AI_SERVICE_TIMEOUT=120000
       - SPRING_JWT_SECRET=${JWT_SECRET:-mySecretKeyForProduction123}
