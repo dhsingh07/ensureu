@@ -31,9 +31,9 @@ RUN groupadd -r ensureu && useradd -r -g ensureu ensureu
 # Copy JAR from build stage
 COPY --from=build /app/ensureu-service/target/ensureu-service-*.jar app.jar
 
-# Create directories for file uploads
-RUN mkdir -p /app/uploads/csv /app/uploads/images && \
-    chown -R ensureu:ensureu /app
+# Create directories for file uploads and logs
+RUN mkdir -p /app/uploads/csv /app/uploads/images /tmp/ensureu && \
+    chown -R ensureu:ensureu /app /tmp/ensureu
 
 USER ensureu
 
