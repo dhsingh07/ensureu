@@ -91,7 +91,7 @@ services:
       context: ./ensureu-next
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8282/api}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api}
     container_name: ensureu-frontend
     restart: always
     depends_on:
