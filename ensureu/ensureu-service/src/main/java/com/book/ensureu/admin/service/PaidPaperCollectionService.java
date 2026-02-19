@@ -20,8 +20,12 @@ public interface PaidPaperCollectionService {
 
 	public void createPaidPaperInCollection(PaidPaperCollection testPaperCollection) throws MongoException;
 	
-	public void updatePaidPaperState(String id,PaperStateStatus paperStateStatus);
-	PaperCollectionDto getTestPaperCollectionById(String id) throws MongoException,DataAccessException;
+	public void updatePaidPaperState(String id, PaperStateStatus paperStateStatus);
+
+	public void updatePaidPaperStateWithValidity(String id, PaperStateStatus paperStateStatus,
+			Long validityStartDate, Long validityEndDate);
+
+	PaperCollectionDto getTestPaperCollectionById(String id) throws MongoException, DataAccessException;
 	Page<PaperCollectionDto> getAllPaidPaperCollection(PaperType paperType,Pageable pageable) throws MongoException,DataAccessException;
 
 	public List<PaperInfo> fetchPaperInfoList(PaperSubCategory paperSubCategory, Pageable pageable,Boolean taken);
@@ -29,5 +33,12 @@ public interface PaidPaperCollectionService {
 	public List<PaperInfo> fetchFreshPaperInfoList(List<String> paperIds);
 
 	public void setTakenPaidPaperCollectionFlag(List<String> paperIdList, boolean flag);
+
+	/**
+	 * Delete a paid paper by ID
+	 * @param id Paper ID to delete
+	 * @throws IllegalArgumentException if paper is ACTIVE or APPROVED
+	 */
+	void deletePaidPaper(String id) throws IllegalArgumentException;
 
 }

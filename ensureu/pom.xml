@@ -5,12 +5,17 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.ensureu</groupId>
+    <groupId>com.grayscalelabs.ensureu</groupId>
     <artifactId>ensureu-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>ensureu-parent</name>
-    <description>EnsureU Parent Project - Assessment Platform</description>
+    <description>EnsureU - Assessment Platform for Competitive Exams. A product of GrayscaleLabs AI Pvt Ltd.</description>
+
+    <organization>
+        <name>GrayscaleLabs AI Pvt Ltd</name>
+        <url>https://grayscalelabs.ai</url>
+    </organization>
 
     <parent>
         <groupId>org.springframework.boot</groupId>

@@ -1,7 +1,7 @@
 // Quiz hooks for daily quiz feature
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post } from '@/lib/api/client';
+import { get, post, put, del } from '@/lib/api/client';
 import { API_URLS } from '@/lib/constants/api-urls';
 import { decrypt, encrypt } from '@/lib/utils/encryption';
 import type { PaperCategory, PaperType, PaperStatus } from '@/types/paper';
@@ -118,15 +118,31 @@ export function useSaveQuiz() {
     }) => {
       const { quizId, quizData, isDone } = data;
 
-      // Prepare submission data
+      // Get pattern from either root level or paper object
+      const pattern = quizData.pattern || (quizData as any).paper?.pattern;
+
+      // Prepare submission data - ensure paperId is included
       const submissionData = {
         ...quizData,
+        paperId: quizData.paperId || quizId, // Fallback to quizId if paperId missing
         paperStatus: isDone ? 'DONE' : 'INPROGRESS',
         testType: 'QUIZ',
+        // Ensure pattern is at root level for backend
+        pattern: pattern,
+        // Also include as paper object for backend compatibility
+        paper: {
+          pattern: pattern,
+        },
       };
 
-      // Encrypt the data (with date enrichment)
-      const encrypted = encrypt(submissionData, true);
+      console.log('[useSaveQuiz] Submitting:', {
+        paperId: submissionData.paperId,
+        paperStatus: submissionData.paperStatus,
+        hasPattern: !!submissionData.pattern,
+      });
+
+      // Encrypt the data
+      const encrypted = encrypt(submissionData, false);
 
       await post(API_URLS.QUIZ.SAVE_ENCRYPTED, { body: encrypted });
 
@@ -189,6 +205,90 @@ export function useQuizById(quizId: string, enabled = true) {
   });
 }
 
+// Admin: Update quiz
+export function useUpdateQuiz() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: QuizCreatePayload & { id: string }) => {
+      await put(API_URLS.QUIZ.COLLECTION_UPDATE, {
+        ...payload,
+        testType: 'QUIZ',
+      });
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.collectionList() });
+      queryClient.invalidateQueries({ queryKey: quizKeys.collection() });
+    },
+  });
+}
+
+// Admin: Delete quiz
+export function useDeleteQuiz() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (quizId: string) => {
+      await del(`${API_URLS.QUIZ.COLLECTION_DELETE}/${quizId}`);
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.collectionList() });
+    },
+  });
+}
+
+// Admin: Update quiz status (approve/activate)
+export function useUpdateQuizStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      quizId,
+      status,
+      validityStartDate,
+      validityEndDate,
+    }: {
+      quizId: string;
+      status: string;
+      validityStartDate?: number;
+      validityEndDate?: number;
+    }) => {
+      // Fetch current quiz data
+      const quiz = await get<Quiz>(`${API_URLS.QUIZ.COLLECTION_GET_BY_ID}/${quizId}`);
+      if (!quiz) {
+        throw new Error('Quiz not found');
+      }
+      // Update the status and validity dates
+      const updateData: any = {
+        ...quiz,
+        paperStateStatus: status,
+      };
+
+      // Add validity dates if provided (for ACTIVE status)
+      if (validityStartDate) {
+        updateData.validityRangeStartDateTime = validityStartDate;
+      }
+      if (validityEndDate) {
+        updateData.validityRangeEndDateTime = validityEndDate;
+      }
+
+      await put(API_URLS.QUIZ.COLLECTION_UPDATE, updateData);
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: quizKeys.collectionList() });
+      queryClient.invalidateQueries({ queryKey: quizKeys.collection() });
+    },
+  });
+}
+
+// Get pattern from quiz data (handles both root-level and nested paper.pattern)
+function getPattern(quizData: any): any {
+  return quizData?.pattern || quizData?.paper?.pattern || null;
+}
+
 // Calculate quiz score
 export function calculateQuizScore(
   quizData: QuizData
@@ -205,20 +305,26 @@ export function calculateQuizScore(
   let totalIncorrect = 0;
   let totalSkipped = 0;
 
-  quizData.pattern.sections.forEach((section) => {
-    section.subSections.forEach((subSection) => {
-      subSection.questions.forEach((question) => {
-        const { co, so } = question.problem;
-        if (!so) {
-          totalSkipped++;
-        } else if (so === co) {
-          totalCorrect++;
-        } else {
-          totalIncorrect++;
-        }
+  const pattern = getPattern(quizData);
+  if (pattern?.sections) {
+    pattern.sections.forEach((section: any) => {
+      if (!section?.subSections) return;
+      section.subSections.forEach((subSection: any) => {
+        // Support both old format (questions directly) and new format (questionData.questions)
+        const questions = subSection.questionData?.questions || subSection.questions || [];
+        questions.forEach((question: any) => {
+          const { co, so } = question.problem || {};
+          if (!so) {
+            totalSkipped++;
+          } else if (so === co) {
+            totalCorrect++;
+          } else {
+            totalIncorrect++;
+          }
+        });
       });
     });
-  });
+  }
 
   const totalAttempted = totalCorrect + totalIncorrect;
   const score =

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart3,
   Clock,
@@ -18,6 +18,9 @@ import {
   Brain,
   BookOpen,
   Loader2,
+  FileBarChart,
+  Play,
+  Trophy,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,15 +28,22 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   useMonthlySummary,
   useAnalysisHistory,
   useWeakAreasAnalysis,
+  useExamAnalysis,
   type AnalysisHistoryItem,
   type MonthlySummary,
   type WeakAreasAnalysis,
 } from '@/hooks/use-ai';
+import { useCompletedTests } from '@/hooks/use-papers';
+import { useCategoryStore } from '@/stores/category-store';
+import { ExamAnalysisCard } from '@/components/ai';
+import type { PaperListItem, PaperSubCategory } from '@/types/paper';
+import type { ExamAnalysisRequest } from '@/types/ai';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -58,10 +68,20 @@ const priorityColors: Record<string, string> = {
 export default function ProgressPage() {
   const user = useAuthStore((state) => state.user);
   const userId = user?.id || user?.userName || '';
+  const rootCategory = useCategoryStore((state) => state.rootCategory);
+  const childCategory = useCategoryStore((state) => state.childCategory);
+  const subCategory = childCategory || `${rootCategory}_TIER1` as PaperSubCategory;
+
+  // Prevent hydration mismatch with Radix Tabs
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: monthlySummary, isLoading: loadingMonthly } = useMonthlySummary(userId, 6, !!userId);
-  const { data: analysisHistory, isLoading: loadingHistory } = useAnalysisHistory(userId, 10, 0, !!userId);
+  const { data: analysisHistory, isLoading: loadingHistory, refetch: refetchHistory } = useAnalysisHistory(userId, 10, 0, !!userId);
   const { data: weakAreas, isLoading: loadingWeakAreas } = useWeakAreasAnalysis(userId, !!userId);
+  const { data: completedTests, isLoading: loadingCompleted } = useCompletedTests(rootCategory, subCategory);
 
   const isLoading = loadingMonthly || loadingHistory || loadingWeakAreas;
 
@@ -95,33 +115,7 @@ export default function ProgressPage() {
     );
   }
 
-  const hasData = monthlySummary?.total_analyses && monthlySummary.total_analyses > 0;
-
-  if (!hasData) {
-    return (
-      <div className="container mx-auto py-12 px-4">
-        <Card className="max-w-lg mx-auto">
-          <CardContent className="pt-12 pb-12 text-center">
-            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="h-10 w-10 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">
-              No Analysis Data Yet
-            </h1>
-            <p className="text-slate-600 mb-6 max-w-sm mx-auto">
-              Complete a test and click "Analyze My Performance" to get AI-powered insights and track your progress over time.
-            </p>
-            <Link href="/home">
-              <Button className="gap-2">
-                <BookOpen className="h-4 w-4" />
-                Take a Test
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const hasAnalysisData = Boolean(monthlySummary?.total_analyses && monthlySummary.total_analyses > 0);
 
   return (
     <div className="container mx-auto py-6 px-4 space-y-6">
@@ -138,69 +132,105 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <OverviewCard
-          title="Total Analyses"
-          value={monthlySummary?.total_analyses || 0}
-          icon={<BarChart3 className="h-5 w-5" />}
-          subtitle="AI analyses performed"
-        />
-        <OverviewCard
-          title="Score Trend"
-          value={monthlySummary?.score_trend || 'stable'}
-          icon={trendIcons[monthlySummary?.score_trend || 'stable']}
-          subtitle="Overall performance"
-          valueClassName={trendColors[monthlySummary?.score_trend || 'stable']}
-          isText
-        />
-        <OverviewCard
-          title="Weak Areas"
-          value={weakAreas?.persistent_weak_areas?.length || 0}
-          icon={<AlertTriangle className="h-5 w-5 text-orange-500" />}
-          subtitle="Areas needing focus"
-        />
-        <OverviewCard
-          title="Last Analysis"
-          value={monthlySummary?.last_analysis ? formatDate(monthlySummary.last_analysis) : 'N/A'}
-          icon={<Calendar className="h-5 w-5" />}
-          subtitle="Most recent"
-          isText
-        />
-      </div>
+      {/* Overview Cards - only show if there's analysis data */}
+      {hasAnalysisData && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <OverviewCard
+            title="Total Analyses"
+            value={monthlySummary?.total_analyses || 0}
+            icon={<BarChart3 className="h-5 w-5" />}
+            subtitle="AI analyses performed"
+          />
+          <OverviewCard
+            title="Score Trend"
+            value={monthlySummary?.score_trend || 'stable'}
+            icon={trendIcons[monthlySummary?.score_trend || 'stable']}
+            subtitle="Overall performance"
+            valueClassName={trendColors[monthlySummary?.score_trend || 'stable']}
+            isText
+          />
+          <OverviewCard
+            title="Weak Areas"
+            value={weakAreas?.persistent_weak_areas?.length || 0}
+            icon={<AlertTriangle className="h-5 w-5 text-orange-500" />}
+            subtitle="Areas needing focus"
+          />
+          <OverviewCard
+            title="Last Analysis"
+            value={monthlySummary?.last_analysis ? formatDate(monthlySummary.last_analysis) : 'N/A'}
+            icon={<Calendar className="h-5 w-5" />}
+            subtitle="Most recent"
+            isText
+          />
+        </div>
+      )}
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="monthly" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="monthly" className="gap-2">
-            <Calendar className="h-4 w-4" />
-            Monthly Progress
+      {/* Main Content Tabs - render only after mount to prevent hydration mismatch */}
+      {!mounted ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full max-w-md" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Skeleton className="h-64" />
+            <Skeleton className="h-64" />
+          </div>
+        </div>
+      ) : (
+      <Tabs id="progress-tabs" defaultValue="analyze" className="space-y-4">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="analyze" className="gap-2">
+            <FileBarChart className="h-4 w-4" />
+            Analyze Results
           </TabsTrigger>
-          <TabsTrigger value="weakareas" className="gap-2">
-            <Target className="h-4 w-4" />
-            Weak Areas
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <Clock className="h-4 w-4" />
-            Analysis History
-          </TabsTrigger>
+          {hasAnalysisData && (
+            <>
+              <TabsTrigger value="monthly" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Monthly Progress
+              </TabsTrigger>
+              <TabsTrigger value="weakareas" className="gap-2">
+                <Target className="h-4 w-4" />
+                Weak Areas
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Analysis History
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
-        {/* Monthly Progress Tab */}
-        <TabsContent value="monthly" className="space-y-4">
-          <MonthlyProgressSection summary={monthlySummary} />
+        {/* Analyze Results Tab - Always visible */}
+        <TabsContent value="analyze" className="space-y-4">
+          <AnalyzeResultsSection
+            completedTests={completedTests || []}
+            isLoading={loadingCompleted}
+            userId={userId}
+            onAnalysisComplete={() => refetchHistory()}
+          />
         </TabsContent>
 
-        {/* Weak Areas Tab */}
-        <TabsContent value="weakareas" className="space-y-4">
-          <WeakAreasSection weakAreas={weakAreas} />
-        </TabsContent>
+        {/* Monthly Progress Tab - Only when analysis data exists */}
+        {hasAnalysisData && (
+          <TabsContent value="monthly" className="space-y-4">
+            <MonthlyProgressSection summary={monthlySummary} />
+          </TabsContent>
+        )}
 
-        {/* History Tab */}
-        <TabsContent value="history" className="space-y-4">
-          <HistorySection history={analysisHistory || []} />
-        </TabsContent>
+        {/* Weak Areas Tab - Only when analysis data exists */}
+        {hasAnalysisData && (
+          <TabsContent value="weakareas" className="space-y-4">
+            <WeakAreasSection weakAreas={weakAreas} />
+          </TabsContent>
+        )}
+
+        {/* History Tab - Only when analysis data exists */}
+        {hasAnalysisData && (
+          <TabsContent value="history" className="space-y-4">
+            <HistorySection history={analysisHistory || []} />
+          </TabsContent>
+        )}
       </Tabs>
+      )}
     </div>
   );
 }
@@ -595,4 +625,167 @@ function formatDateTime(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+// Analyze Results Section - allows users to analyze completed tests
+function AnalyzeResultsSection({
+  completedTests,
+  isLoading,
+  userId,
+  onAnalysisComplete,
+}: {
+  completedTests: PaperListItem[];
+  isLoading: boolean;
+  userId: string;
+  onAnalysisComplete: () => void;
+}) {
+  const [selectedTest, setSelectedTest] = useState<PaperListItem | null>(null);
+
+  // Create analysis request for a test
+  const createAnalysisRequest = (test: PaperListItem): ExamAnalysisRequest => ({
+    userId: userId,
+    examId: test.paperId,
+    examName: test.paperName,
+    score: test.totalGetScore || 0,
+    totalMarks: test.totalScore,
+    timeTakenMinutes: Math.floor((test.totalTime || 0) / 60),
+    totalTimeMinutes: Math.floor((test.totalTime || 0) / 60),
+    sectionScores: [], // Will be populated if we have section data
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!completedTests.length) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="font-semibold mb-2">No Completed Tests</h3>
+          <p className="text-muted-foreground mb-4">
+            Complete a test to analyze your performance with AI.
+          </p>
+          <Link href="/home">
+            <Button className="gap-2">
+              <Play className="h-4 w-4" />
+              Take a Test
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If a test is selected, show the analysis card
+  if (selectedTest) {
+    const analysisRequest = createAnalysisRequest(selectedTest);
+    const percentage = selectedTest.totalScore > 0
+      ? Math.round(((selectedTest.totalGetScore || 0) / selectedTest.totalScore) * 100)
+      : 0;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">{selectedTest.paperName}</h3>
+            <p className="text-sm text-muted-foreground">
+              Score: {selectedTest.totalGetScore || 0}/{selectedTest.totalScore} ({percentage}%)
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => setSelectedTest(null)}>
+            Back to Tests
+          </Button>
+        </div>
+
+        <ExamAnalysisCard examData={analysisRequest} />
+      </div>
+    );
+  }
+
+  // Show list of completed tests
+  return (
+    <div className="space-y-4">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Performance Analysis
+          </CardTitle>
+          <CardDescription>
+            Select a completed test to get AI-powered insights and recommendations.
+            Analysis results are saved to your profile for future reference.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {completedTests.map((test) => {
+          const percentage = test.totalScore > 0
+            ? Math.round(((test.totalGetScore || 0) / test.totalScore) * 100)
+            : 0;
+
+          return (
+            <Card key={test.paperId} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold truncate" title={test.paperName}>
+                      {test.paperName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {test.paperType?.replace(/_/g, ' ')}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        {test.totalGetScore || 0}/{test.totalScore}
+                      </span>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        percentage >= 70 ? 'bg-green-100 text-green-700' :
+                        percentage >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      )}
+                    >
+                      {percentage}%
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Progress value={percentage} className="h-2" />
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>{Math.floor((test.totalTime || 0) / 60)} min</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => setSelectedTest(test)}
+                  >
+                    <Brain className="h-4 w-4" />
+                    Analyze Performance
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

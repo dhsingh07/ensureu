@@ -155,9 +155,12 @@ export default function QuizPage() {
   );
 
   const handleStartQuiz = (quiz: QuizListItem) => {
+    // Use paperId (quiz collection ID) for navigation, not id (user attempt ID)
+    const quizCollectionId = quiz.paperId || quiz.id || '';
+
     // Save quiz info to session
     saveQuizInfo({
-      quizId: quiz.id || quiz.paperId || '',
+      quizId: quizCollectionId,
       paperName: quiz.paperName,
       paperCategory: quiz.paperCategory,
       totalTime: quiz.totalTime,
@@ -167,13 +170,16 @@ export default function QuizPage() {
       perQuestionScore: quiz.perQuestionScore,
     });
 
-    // Navigate to quiz
-    router.push(`/quiz/${quiz.id || quiz.paperId}`);
+    // Navigate to quiz using the collection ID
+    router.push(`/quiz/${quizCollectionId}`);
   };
 
   const handleViewCompleted = (quiz: QuizListItem) => {
+    // Use paperId (quiz collection ID) for navigation
+    const quizCollectionId = quiz.paperId || quiz.id || '';
+
     saveQuizInfo({
-      quizId: quiz.id || quiz.paperId || '',
+      quizId: quizCollectionId,
       paperName: quiz.paperName,
       paperCategory: quiz.paperCategory,
       totalTime: quiz.totalTime,
@@ -183,7 +189,7 @@ export default function QuizPage() {
       perQuestionScore: quiz.perQuestionScore,
     });
 
-    router.push(`/quiz/${quiz.id || quiz.paperId}?view=result`);
+    router.push(`/quiz/${quizCollectionId}?view=result`);
   };
 
   return (
@@ -256,7 +262,7 @@ export default function QuizPage() {
       </div>
 
       {/* Quiz Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+      <Tabs id="quiz-tabs" value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList className="mb-6">
           <TabsTrigger value="available" className="gap-2">
             <Target className="h-4 w-4" />

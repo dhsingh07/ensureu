@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,6 +111,12 @@ export default function HomePage() {
   const rootCategory = useCategoryStore((state) => state.rootCategory);
   const childCategory = useCategoryStore((state) => state.childCategory);
 
+  // Prevent hydration mismatch with Radix Tabs
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Use default subcategory if not set
   const subCategory = childCategory || `${rootCategory}_TIER1` as PaperSubCategory;
 
@@ -215,8 +222,18 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Test Tabs */}
-      <Tabs defaultValue="free" className="space-y-6">
+      {/* Test Tabs - render only after mount to prevent hydration mismatch */}
+      {!mounted ? (
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-96" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        </div>
+      ) : (
+      <Tabs id="home-test-tabs" defaultValue="free" className="space-y-6">
         <TabsList>
           <TabsTrigger value="free">
             Free Tests {freeTests?.length ? `(${freeTests.length})` : ''}
@@ -348,6 +365,7 @@ export default function HomePage() {
           )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

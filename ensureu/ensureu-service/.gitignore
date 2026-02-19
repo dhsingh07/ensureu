@@ -1,0 +1,22 @@
+.idea/
+*target/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Environment files (NEVER commit these!)
+.env
+.env.local
+.env.dev
+.env.prod
+*.env
+
+# Keep the example
+!.env.example
+
+# Logs
+*.log
+logs/
+

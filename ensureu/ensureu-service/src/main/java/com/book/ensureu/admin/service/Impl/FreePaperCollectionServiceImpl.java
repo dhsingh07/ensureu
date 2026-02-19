@@ -147,19 +147,55 @@ public class FreePaperCollectionServiceImpl implements FreePaperCollectionServic
 
 	@Override
 	public void updateFreePaperState(String id, PaperStateStatus paperStateStatus) {
+		updateFreePaperStateWithValidity(id, paperStateStatus, null, null);
+	}
+
+	@Override
+	public void updateFreePaperStateWithValidity(String id, PaperStateStatus paperStateStatus,
+			Long validityStartDate, Long validityEndDate) {
 
 		Optional<FreePaperCollection> freePaperCollectionOptional = freePaperCollectionRepository.findById(id);
 		if (freePaperCollectionOptional.isPresent()) {
 			FreePaperCollection freePaperCollection = freePaperCollectionOptional.get();
-			if (paperStateStatus.equals(PaperStateStatus.ACTIVE)
-					&& freePaperCollection.getPaperStateStatus().equals(PaperStateStatus.DRAFT)) {
-				freePaperCollection.setPaperStateStatus(paperStateStatus);
-			} else if (paperStateStatus.equals(PaperStateStatus.APPROVED)
-					&& freePaperCollection.getPaperStateStatus().equals(PaperStateStatus.ACTIVE)) {
-				freePaperCollection.setPaperStateStatus(paperStateStatus);
-			} else {
-				throw new IllegalAccessError("Status is wrong to update");
+
+			// Update status
+			freePaperCollection.setPaperStateStatus(paperStateStatus);
+
+			// Update validity dates if provided (typically for ACTIVE status)
+			if (validityStartDate != null) {
+				freePaperCollection.setValidityRangeStartDateTime(validityStartDate);
 			}
+			if (validityEndDate != null) {
+				freePaperCollection.setValidityRangeEndDateTime(validityEndDate);
+			}
+
+			// Save the updated paper
+			freePaperCollectionRepository.save(freePaperCollection);
+			LOGGER.info("Updated Free Paper state to {} for id {}", paperStateStatus, id);
+		} else {
+			LOGGER.warn("Free Paper not found for id {}", id);
+			throw new IllegalArgumentException("Paper not found with id: " + id);
+		}
+	}
+
+	@Override
+	public void deleteFreePaper(String id) throws IllegalArgumentException {
+		Optional<FreePaperCollection> freePaperCollectionOptional = freePaperCollectionRepository.findById(id);
+		if (freePaperCollectionOptional.isPresent()) {
+			FreePaperCollection freePaperCollection = freePaperCollectionOptional.get();
+
+			// Only allow deletion of DRAFT papers (SUPERADMIN access is enforced at API level)
+			if (freePaperCollection.getPaperStateStatus() == PaperStateStatus.ACTIVE ||
+					freePaperCollection.getPaperStateStatus() == PaperStateStatus.APPROVED) {
+				LOGGER.warn("Cannot delete ACTIVE/APPROVED paper: {}", id);
+				throw new IllegalArgumentException("Cannot delete paper with status: " + freePaperCollection.getPaperStateStatus());
+			}
+
+			freePaperCollectionRepository.deleteById(id);
+			LOGGER.info("Deleted Free Paper with id {}", id);
+		} else {
+			LOGGER.warn("Free Paper not found for deletion: {}", id);
+			throw new IllegalArgumentException("Paper not found with id: " + id);
 		}
 	}
 

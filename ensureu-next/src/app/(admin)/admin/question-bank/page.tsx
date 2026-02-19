@@ -420,7 +420,7 @@ export default function QuestionBankPage() {
 
       <StatsCards />
 
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs id="question-bank-tabs" defaultValue="all" className="w-full">
         <TabsList>
           <TabsTrigger value="all">All Questions</TabsTrigger>
           <TabsTrigger value="draft">Draft</TabsTrigger>

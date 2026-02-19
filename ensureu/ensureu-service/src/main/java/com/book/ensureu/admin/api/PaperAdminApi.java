@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -74,14 +75,24 @@ public class PaperAdminApi {
 
 	@CrossOrigin
 	@RequestMapping(value = "/save/{testType}", method = RequestMethod.PUT)
-	public void updatePaper(@PathVariable(value="testType",required = true) String testType,@RequestParam(value="id",required=true) String id, @RequestParam(value="paperState",required=true) PaperStateStatus paperState) {
+	public void updatePaper(
+			@PathVariable(value = "testType", required = true) String testType,
+			@RequestParam(value = "id", required = true) String id,
+			@RequestParam(value = "paperState", required = true) PaperStateStatus paperState,
+			@RequestParam(value = "validityStartDate", required = false) Long validityStartDate,
+			@RequestParam(value = "validityEndDate", required = false) Long validityEndDate) {
 		try {
-			if(TestType.FREE.equals(TestType.valueOf(testType))) {
-				freePaperCollectionService.updateFreePaperState(id, paperState);
-			}else if(TestType.PAID.equals(TestType.valueOf(testType))) {
-				paidPaperCollectionService.updatePaidPaperState(id, paperState);
+			log.info("updatePaper: testType={}, id={}, paperState={}, validityStart={}, validityEnd={}",
+					testType, id, paperState, validityStartDate, validityEndDate);
+
+			if (TestType.FREE.equals(TestType.valueOf(testType))) {
+				freePaperCollectionService.updateFreePaperStateWithValidity(id, paperState,
+						validityStartDate, validityEndDate);
+			} else if (TestType.PAID.equals(TestType.valueOf(testType))) {
+				paidPaperCollectionService.updatePaidPaperStateWithValidity(id, paperState,
+						validityStartDate, validityEndDate);
 			}
-			
+
 		} catch (MongoException ex) {
 			log.error("updatePaper ", ex);
 		}
@@ -144,10 +155,63 @@ public class PaperAdminApi {
 			System.out.println(imageUrl);
 			
 			return Response.builder().body(fileName).message("Sucess image URL #"+imageUrl+"").status(200).build();
-			
+
 		} catch (Exception ex) {
 			log.error("getAllPaperFromColl ", ex);
 		}
 		return Response.builder().message("Failed").status(400).build();
+	}
+
+	/**
+	 * Delete paper (SUPERADMIN only - enforced by security config)
+	 * @param testType FREE or PAID
+	 * @param id Paper ID to delete
+	 * @return Response indicating success or failure
+	 */
+	@CrossOrigin
+	@DeleteMapping("/delete/{testType}/{id}")
+	public Response<Boolean> deletePaper(
+			@PathVariable(value = "testType") String testType,
+			@PathVariable(value = "id") String id) {
+		log.info("[PaperAdminApi] Delete paper request: testType={}, id={}", testType, id);
+		try {
+			boolean deleted = false;
+			if (TestType.FREE.equals(TestType.valueOf(testType))) {
+				freePaperCollectionService.deleteFreePaper(id);
+				deleted = true;
+			} else if (TestType.PAID.equals(TestType.valueOf(testType))) {
+				paidPaperCollectionService.deletePaidPaper(id);
+				deleted = true;
+			}
+
+			if (deleted) {
+				log.info("[PaperAdminApi] Paper deleted successfully: {}", id);
+				return Response.<Boolean>builder()
+						.body(true)
+						.status(200)
+						.message("Paper deleted successfully")
+						.build();
+			} else {
+				return Response.<Boolean>builder()
+						.body(false)
+						.status(400)
+						.message("Invalid test type")
+						.build();
+			}
+		} catch (IllegalArgumentException e) {
+			log.warn("[PaperAdminApi] Delete validation error: {}", e.getMessage());
+			return Response.<Boolean>builder()
+					.body(false)
+					.status(400)
+					.message(e.getMessage())
+					.build();
+		} catch (Exception e) {
+			log.error("[PaperAdminApi] Delete error: {}", e.getMessage(), e);
+			return Response.<Boolean>builder()
+					.body(false)
+					.status(500)
+					.message("Failed to delete paper: " + e.getMessage())
+					.build();
+		}
 	}
 }

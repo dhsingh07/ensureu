@@ -138,13 +138,15 @@ export default async function Image() {
             position: 'absolute',
             bottom: 40,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            gap: 10,
+            gap: 5,
             color: '#64748b',
-            fontSize: 20,
+            fontSize: 18,
           }}
         >
           <span>ensureu.com</span>
+          <span style={{ fontSize: 14, color: '#475569' }}>A product of GrayscaleLabs AI Pvt Ltd</span>
         </div>
       </div>
     ),

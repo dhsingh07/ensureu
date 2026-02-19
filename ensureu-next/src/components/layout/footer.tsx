@@ -137,7 +137,8 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-slate-500">
-          <p>&copy; {new Date().getFullYear()} EnsureU. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} GrayscaleLabs AI Pvt Ltd. All rights reserved.</p>
+          <p className="mt-1 text-slate-400">EnsureU is a product of GrayscaleLabs AI Pvt Ltd.</p>
         </div>
       </div>
     </footer>

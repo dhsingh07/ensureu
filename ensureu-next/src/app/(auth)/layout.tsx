@@ -28,7 +28,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
       {/* Footer */}
       <footer className="py-4 text-center text-sm text-slate-500">
-        <p>&copy; 2026 EnsureU. All rights reserved.</p>
+        <p>&copy; 2026 GrayscaleLabs AI Pvt Ltd. All rights reserved.</p>
       </footer>
     </div>
   );

@@ -12,17 +12,21 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import com.book.ensureu.admin.constant.PaperStateStatus;
 import com.book.ensureu.constant.CounterEnum;
 import com.book.ensureu.constant.PaperCategory;
 import com.book.ensureu.constant.PaperStatus;
 import com.book.ensureu.constant.PaperSubCategory;
 import com.book.ensureu.constant.PaperType;
+import com.book.ensureu.constant.PurchaseStatus;
 import com.book.ensureu.constant.TestType;
 import com.book.ensureu.dto.AttemptedPaperDto;
 import com.book.ensureu.dto.PaperDto;
 import com.book.ensureu.dto.PaperInfo;
+import com.book.ensureu.model.PurchaseSubscriptions;
 import com.book.ensureu.model.QuizPaper;
 import com.book.ensureu.model.QuizPaperCollection;
+import com.book.ensureu.repository.PurchaseSubscriptionsRespository;
 import com.book.ensureu.repository.QuizPaperCollectionRepository;
 import com.book.ensureu.repository.QuizPaperRepository;
 import com.book.ensureu.service.CounterService;
@@ -50,6 +54,10 @@ public class QuizPaperServiceImpl implements PaperService {
 	@Autowired
 	@Lazy
 	private SubscriptionService subscriptionService;
+
+	@Autowired
+	@Lazy
+	private PurchaseSubscriptionsRespository purchaseSubscriptionsRepository;
 	
 	@Override
 	public void savePaper(PaperDto paperDto) {
@@ -263,90 +271,118 @@ public class QuizPaperServiceImpl implements PaperService {
 	@Override
 	public List<PaperDto> getPaperStatusDetailsByPaperCateoryORTestType(String userId, TestType testType,
 			PaperType paperType, PaperCategory paperCategory) throws Exception {
-		// need to add paperIds from subscription and entitle table..
 
 		List<PaperDto> resultDto = null;
-		//to do in subscription table to quiz as well...
-		
-		/*
-		 * List<PaperInfo> listPaperInfo =
-		 * subscriptionService.getPaperInfoListForUser(userId, new Date().getTime(), new
-		 * Date().getTime(), true, paperType, paperCategory, testType);
-		 * 
-		 * List<String> paperIds = new ArrayList<>(); long validityDate; if
-		 * (listPaperInfo != null && !listPaperInfo.isEmpty()) { validityDate =
-		 * listPaperInfo.get(0).getValidity(); listPaperInfo.forEach(paperInfo -> {
-		 * paperIds.add(paperInfo.getId());
-		 * 
-		 * }); } else { log.info("User ["+userId+"] is not subscribed paper"); return
-		 * null; }
-		 */
-		/*
-		 * paperIds.add(3L); paperIds.add(4L); paperIds.add(5L); paperIds.add(6L);
-		 */
-		
-		Long validityDate=new Date().getTime();
-		
-		List<String> paperIds = new ArrayList<>();
-		paperIds.add("quiz1"); paperIds.add("quiz2"); paperIds.add("quiz3"); paperIds.add("quiz4");paperIds.add("quiz5");
+		Long currentTime = System.currentTimeMillis();
+
 		try {
-			if (paperIds == null || paperIds.isEmpty()) {
+			// Step 1: Check if user has an active subscription for this category
+			if (userId != null && paperCategory != null) {
+				List<PurchaseSubscriptions> activeSubscriptions = purchaseSubscriptionsRepository
+						.findActiveSubscriptionsByUserAndCategory(
+								userId,
+								paperCategory,
+								PurchaseStatus.COMPLETED,
+								currentTime);
+
+				if (activeSubscriptions == null || activeSubscriptions.isEmpty()) {
+					log.info("User [{}] does not have an active subscription for category [{}]", userId, paperCategory);
+					return null;
+				}
+				log.info("User [{}] has {} active subscription(s) for category [{}]",
+						userId, activeSubscriptions.size(), paperCategory);
+			}
+
+			// Step 2: Fetch ACTIVE quizzes within validity date range for this category
+			List<QuizPaperCollection> activeQuizzes;
+			if (paperCategory != null) {
+				activeQuizzes = quizPaperCollectionRepository.findActiveQuizzesForCategory(
+						PaperStateStatus.ACTIVE,
+						paperCategory,
+						currentTime);
+			} else {
+				activeQuizzes = quizPaperCollectionRepository.findActiveQuizzesForPaperType(
+						PaperStateStatus.ACTIVE,
+						paperType,
+						currentTime);
+			}
+
+			if (activeQuizzes == null || activeQuizzes.isEmpty()) {
+				log.info("No active quizzes found for category [{}] at current time [{}]", paperCategory, currentTime);
 				return null;
 			}
-			log.info("size Quiz paperIds [" + paperIds.size() + "] ");
-			log.info("getPaperStatusDetailsByPaperIds QUIZ userId [" + userId + "] paperIds [" + paperIds + "]");
-			List<QuizPaper> quizPaperList = quizPaperRepository.findQuizPaperUsingUserIdAndPaperIds(userId, paperIds);
-			if (quizPaperList != null && !quizPaperList.isEmpty()) {
-				log.info("getPaperStatusDetailsByPaperIds QUIZ paperSize [" + quizPaperList.size() + "]");
-				
-				List<QuizPaper> paperNotDoneOnlyList=new ArrayList<>();
-				quizPaperList.forEach(paperQuiz->{
-					
-					if(paperQuiz!=null && !PaperStatus.DONE.equals(paperQuiz.getPaperStatus())) {
-						paperNotDoneOnlyList.add(paperQuiz);
-				}});
-				
-				log.info("getPaperStatusDetailsByPaperIds PAID paperSize after DONE remove [" + paperNotDoneOnlyList.size() + "]");
 
-				// get from user collection..
+			log.info("Found [{}] active quizzes for category [{}]", activeQuizzes.size(), paperCategory);
+
+			// Step 3: Get paper IDs from active quizzes
+			List<String> paperIds = activeQuizzes.stream()
+					.map(QuizPaperCollection::getId)
+					.collect(Collectors.toList());
+
+			// Step 4: Check if user has already started/completed any of these quizzes
+			List<QuizPaper> userQuizPaperList = null;
+			if (userId != null) {
+				userQuizPaperList = quizPaperRepository.findQuizPaperUsingUserIdAndPaperIds(userId, paperIds);
+			}
+
+			if (userQuizPaperList != null && !userQuizPaperList.isEmpty()) {
+				log.info("User [{}] has [{}] quiz attempts", userId, userQuizPaperList.size());
+
+				// Filter out completed quizzes
+				List<QuizPaper> paperNotDoneOnlyList = userQuizPaperList.stream()
+						.filter(paperQuiz -> paperQuiz != null && !PaperStatus.DONE.equals(paperQuiz.getPaperStatus()))
+						.collect(Collectors.toList());
+
+				log.info("After filtering DONE, [{}] quizzes remain in progress", paperNotDoneOnlyList.size());
+
+				// Get DTOs from user's quiz attempts
 				List<PaperDto> paperDtoFromUserPaper = QuizPaperConversionUtil.quizPaperToDto(paperNotDoneOnlyList);
-				if (paperIds.size() > quizPaperList.size()) {
-					quizPaperList.forEach(p -> paperIds.remove(p.getPaperId()));
-					log.info("size after change paperSize [" + quizPaperList.size() + "]");
-					// get from paperCollection...
-					List<QuizPaperCollection> quizPaperColl = quizPaperCollectionRepository.findByIdListIns(paperIds);
-					if (quizPaperColl != null && !quizPaperColl.isEmpty()) {
-						List<QuizPaper> quizPaperList1 = new ArrayList<>();
-						quizPaperColl
-								.forEach(quizPaperCollItem -> quizPaperList1.add(createQuizPaperByQuizCollectionPaper(
-										quizPaperCollItem, testType, userId, null, validityDate)));
-						List<PaperDto> paperDtoFromColl = QuizPaperConversionUtil.quizPaperToDto(quizPaperList1);
-						if(paperDtoFromUserPaper!=null && paperDtoFromColl!=null) {
-							resultDto = Stream.of(paperDtoFromUserPaper, paperDtoFromColl).flatMap(x -> x.stream())
-									.collect(Collectors.toList());
-						}else if(paperDtoFromUserPaper!=null) {
-							resultDto=paperDtoFromUserPaper;
-						}else if(paperDtoFromColl!=null) {
-							resultDto= paperDtoFromColl;
-						}
-					
-					} else {
+
+				// Find quizzes not yet started by the user
+				List<String> startedPaperIds = userQuizPaperList.stream()
+						.map(QuizPaper::getPaperId)
+						.collect(Collectors.toList());
+				List<QuizPaperCollection> notStartedQuizzes = activeQuizzes.stream()
+						.filter(quiz -> !startedPaperIds.contains(quiz.getId()))
+						.collect(Collectors.toList());
+
+				if (!notStartedQuizzes.isEmpty()) {
+					// Get validity date from subscription
+					Long validityDate = currentTime;
+
+					List<QuizPaper> newQuizPaperList = notStartedQuizzes.stream()
+							.map(quiz -> createQuizPaperByQuizCollectionPaper(quiz, testType, userId, null, validityDate))
+							.collect(Collectors.toList());
+
+					List<PaperDto> paperDtoFromColl = QuizPaperConversionUtil.quizPaperToDto(newQuizPaperList);
+
+					// Merge both lists
+					if (paperDtoFromUserPaper != null && paperDtoFromColl != null) {
+						resultDto = Stream.of(paperDtoFromUserPaper, paperDtoFromColl)
+								.flatMap(List::stream)
+								.collect(Collectors.toList());
+					} else if (paperDtoFromUserPaper != null) {
 						resultDto = paperDtoFromUserPaper;
+					} else {
+						resultDto = paperDtoFromColl;
 					}
 				} else {
 					resultDto = paperDtoFromUserPaper;
 				}
-				log.info("getPaperStatusDetailsByPaperIds PAID paperSize [" + paperIds.size() + "]");
+			} else {
+				// User has not started any quiz yet - return all active quizzes
+				Long validityDate = currentTime;
+				List<QuizPaper> quizPaperList = activeQuizzes.stream()
+						.map(quiz -> createQuizPaperByQuizCollectionPaper(quiz, testType, userId, null, validityDate))
+						.collect(Collectors.toList());
+				resultDto = QuizPaperConversionUtil.quizPaperToDto(quizPaperList);
 			}
 
-			else {
-				List<QuizPaperCollection> quizPaperColl = quizPaperCollectionRepository.findByIdListIns(paperIds);
-				List<QuizPaper> quizPaperList1 = new ArrayList<>();
-				quizPaperColl.forEach(paidPaperCollItem -> quizPaperList1.add(
-						createQuizPaperByQuizCollectionPaper(paidPaperCollItem, testType, userId, null, validityDate)));
-				resultDto = QuizPaperConversionUtil.quizPaperToDto(quizPaperList1);
-			}
+			log.info("Returning [{}] quizzes to user [{}]",
+					resultDto != null ? resultDto.size() : 0, userId);
+
 		} catch (Exception ex) {
+			log.error("Error in getPaperStatusDetailsByPaperCateoryORTestType", ex);
 			throw ex;
 		}
 		return resultDto;

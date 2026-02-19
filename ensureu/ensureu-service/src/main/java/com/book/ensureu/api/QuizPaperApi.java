@@ -98,8 +98,9 @@ public class QuizPaperApi {
 			}
 			
 			} catch (Exception ex) {
-				
-				log.error("Quiz: savePaper  " + paperDto.getPaperId() + " testType " + paperDto.getTestType(), ex);
+				String paperId = paperDto != null ? paperDto.getPaperId() : "unknown";
+				String testType = paperDto != null && paperDto.getTestType() != null ? paperDto.getTestType().toString() : "unknown";
+				log.error("Quiz: savePaper paperId=" + paperId + " testType=" + testType, ex);
 				ex.printStackTrace();
 			}
 		}else {

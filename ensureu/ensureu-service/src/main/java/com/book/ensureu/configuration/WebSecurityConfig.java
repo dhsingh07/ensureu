@@ -140,8 +140,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 // SUPERADMIN + ADMIN endpoints
                 .antMatchers("/admin/dashboard/**").hasAnyRole(USER_SUPERADMIN, USER_ADMIN)
 
+                // SUPERADMIN only for paper deletion
+                .antMatchers(HttpMethod.DELETE, "/admin/paper/delete/**").hasRole(USER_SUPERADMIN)
+
                 // SUPERADMIN + ADMIN + TEACHER endpoints
                 .antMatchers("/admin/paper/**").hasAnyRole(USER_SUPERADMIN, USER_ADMIN, USER_TEACHER)
+                .antMatchers("/admin/paper-image/**").hasAnyRole(USER_SUPERADMIN, USER_ADMIN, USER_TEACHER)
+                .antMatchers("/admin/source-material/**").hasAnyRole(USER_SUPERADMIN, USER_ADMIN, USER_TEACHER)
                 .antMatchers("/admin/upload/**").hasAnyRole(USER_SUPERADMIN, USER_ADMIN, USER_TEACHER)
                 .antMatchers("/admin/question-bank/**").hasAnyRole(USER_SUPERADMIN, USER_ADMIN, USER_TEACHER)
 

@@ -17,8 +17,8 @@ export interface QuizProblem {
   value: string;        // Question text (may contain HTML)
   valueHindi?: string;  // Hindi translation
   options: QuizOption[];
-  co: string;           // Correct option (A, B, C, D)
-  so?: string;          // Selected option
+  co: number | string;  // Correct option - number (0-3) for backend, string (A-D) for display
+  so?: number | string; // Selected option - number (0-3) for backend, string (A-D) for display
   solutions?: QuizSolution[];
 }
 
@@ -28,13 +28,21 @@ export interface QuizQuestion {
   quesTime?: number;    // Time spent on question
 }
 
-export interface QuizSubSection {
-  subSectionTitle: string;
+export interface QuizQuestionData {
   questions: QuizQuestion[];
+  skip?: string;
+}
+
+export interface QuizSubSection {
+  title?: string;
+  subSectionTitle?: string;  // Legacy field
+  questionData?: QuizQuestionData;
+  questions?: QuizQuestion[];  // Legacy field - direct questions
 }
 
 export interface QuizSection {
-  sectionTitle: string;
+  title?: string;
+  sectionTitle?: string;  // Legacy field
   subSections: QuizSubSection[];
 }
 

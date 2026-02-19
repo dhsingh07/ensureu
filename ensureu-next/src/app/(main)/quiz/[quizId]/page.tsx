@@ -40,32 +40,63 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
+// Get pattern from quiz data (handles both root-level and nested paper.pattern)
+function getPattern(quizData: any): any {
+  // Backend returns pattern inside paper object for user quiz data
+  // Admin creates pattern at root level
+  return quizData?.pattern || quizData?.paper?.pattern || null;
+}
+
 // Flatten questions from nested structure
 function flattenQuestions(quizData: QuizData): QuizQuestion[] {
   const questions: QuizQuestion[] = [];
-  quizData.pattern.sections.forEach((section) => {
-    section.subSections.forEach((subSection) => {
-      questions.push(...subSection.questions);
+  const pattern = getPattern(quizData);
+  if (!pattern?.sections) {
+    console.log('[flattenQuestions] No pattern.sections found', {
+      hasPattern: !!quizData?.pattern,
+      hasPaperPattern: !!(quizData as any)?.paper?.pattern
     });
-  });
-  return questions;
-}
-
-// Update question in quiz data
-function updateQuestionInData(
-  quizData: QuizData,
-  questionId: string,
-  selectedOption: string
-): QuizData {
-  const updated = JSON.parse(JSON.stringify(quizData)) as QuizData;
-  updated.pattern.sections.forEach((section) => {
-    section.subSections.forEach((subSection) => {
-      const question = subSection.questions.find((q) => q._id === questionId);
-      if (question) {
-        question.problem.so = selectedOption;
+    return questions;
+  }
+  pattern.sections.forEach((section: any) => {
+    if (!section?.subSections) return;
+    section.subSections.forEach((subSection: any) => {
+      // Support both old format (questions directly) and new format (questionData.questions)
+      const subQuestions = subSection.questionData?.questions || subSection.questions || [];
+      if (subQuestions.length > 0) {
+        questions.push(...subQuestions);
       }
     });
   });
+  console.log('[flattenQuestions] Found', questions.length, 'questions');
+  return questions;
+}
+
+// Update question in quiz data by flattened index
+function updateQuestionInData(
+  quizData: QuizData,
+  questionIndex: number,
+  selectedOption: string
+): QuizData {
+  const updated = JSON.parse(JSON.stringify(quizData)) as QuizData;
+  const pattern = getPattern(updated);
+  if (!pattern?.sections) return updated;
+
+  // Flatten and update by index (same logic as flattenQuestions)
+  let currentIdx = 0;
+  for (const section of pattern.sections) {
+    if (!section?.subSections) continue;
+    for (const subSection of section.subSections) {
+      const questions = subSection.questionData?.questions || subSection.questions || [];
+      for (const question of questions) {
+        if (currentIdx === questionIndex) {
+          question.problem.so = selectedOption;
+          return updated;
+        }
+        currentIdx++;
+      }
+    }
+  }
   return updated;
 }
 
@@ -144,14 +175,14 @@ export default function QuizTakePage() {
 
       // If already selected same option, deselect it
       if (currentQuestion.problem.so === option) {
-        const updated = updateQuestionInData(quizState, currentQuestion._id, '');
+        const updated = updateQuestionInData(quizState, currentIndex, '');
         setQuizState(updated);
       } else {
-        const updated = updateQuestionInData(quizState, currentQuestion._id, option);
+        const updated = updateQuestionInData(quizState, currentIndex, option);
         setQuizState(updated);
       }
     },
-    [quizState, currentQuestion, isSubmitted]
+    [quizState, currentQuestion, currentIndex, isSubmitted]
   );
 
   // Handle submit
@@ -233,6 +264,24 @@ export default function QuizTakePage() {
     );
   }
 
+  // No questions state
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-orange-500" />
+            <h2 className="text-lg font-semibold mb-2">Quiz has no questions</h2>
+            <p className="text-slate-600 mb-4">
+              This quiz doesn&apos;t have any questions yet. Please try another quiz.
+            </p>
+            <Button onClick={handleBack}>Back to Quizzes</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Results view
   if (isSubmitted && score) {
     return (
@@ -282,7 +331,7 @@ export default function QuizTakePage() {
                   const isSkipped = !q.problem.so;
                   return (
                     <button
-                      key={q._id}
+                      key={q._id || `q-${idx}`}
                       onClick={() => setCurrentIndex(idx)}
                       className={`w-10 h-10 rounded-lg font-medium text-sm transition-colors ${
                         idx === currentIndex
@@ -322,13 +371,13 @@ export default function QuizTakePage() {
                   />
 
                   <div className="grid gap-3">
-                    {currentQuestion.problem.options.map((option) => {
+                    {currentQuestion.problem.options.map((option, optIdx) => {
                       const isSelected = currentQuestion.problem.so === option.prompt;
                       const isCorrect = currentQuestion.problem.co === option.prompt;
 
                       return (
                         <div
-                          key={option.prompt}
+                          key={option.prompt || `opt-${optIdx}`}
                           className={`rounded-xl border-2 px-4 py-3 ${
                             isCorrect
                               ? 'border-green-500 bg-green-50'
@@ -461,12 +510,12 @@ export default function QuizTakePage() {
 
                   {/* Options */}
                   <div className="grid gap-3">
-                    {currentQuestion.problem.options.map((option) => {
+                    {currentQuestion.problem.options.map((option, optIdx) => {
                       const isSelected = currentQuestion.problem.so === option.prompt;
 
                       return (
                         <button
-                          key={option.prompt}
+                          key={option.prompt || `take-opt-${optIdx}`}
                           onClick={() => handleSelectOption(option.prompt)}
                           className={`rounded-xl border-2 px-4 py-3 text-left transition-all ${
                             isSelected
@@ -533,7 +582,7 @@ export default function QuizTakePage() {
                     const isAnswered = !!q.problem.so;
                     return (
                       <button
-                        key={q._id}
+                        key={q._id || `palette-${idx}`}
                         onClick={() => setCurrentIndex(idx)}
                         className={`w-8 h-8 rounded text-xs font-medium transition-colors ${
                           idx === currentIndex

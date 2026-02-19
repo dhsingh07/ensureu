@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MathEditor, MathRenderer } from '@/components/math';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -353,28 +354,28 @@ export default function CreateQuestionPage() {
         <Card>
           <CardHeader>
             <CardTitle>Question</CardTitle>
-            <CardDescription>Enter the question text (HTML supported)</CardDescription>
+            <CardDescription>Enter the question text with math symbols using the toolbar</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Question Text (English) *</Label>
-              <Textarea
-                placeholder="Enter question text..."
-                rows={4}
+              <MathEditor
                 value={formData.question}
-                onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                className={errors.question ? 'border-red-500' : ''}
+                onChange={(value) => setFormData({ ...formData, question: value })}
+                placeholder="Enter question text... Use toolbar for math symbols"
+                rows={4}
+                className={errors.question ? '[&_textarea]:border-red-500' : ''}
               />
               {errors.question && <p className="text-sm text-red-500">{errors.question}</p>}
             </div>
 
             <div className="space-y-2">
               <Label>Question Text (Hindi) - Optional</Label>
-              <Textarea
-                placeholder="Enter Hindi translation..."
-                rows={3}
+              <MathEditor
                 value={formData.questionHindi}
-                onChange={(e) => setFormData({ ...formData, questionHindi: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, questionHindi: value })}
+                placeholder="Enter Hindi translation with math symbols..."
+                rows={3}
               />
             </div>
 
@@ -459,26 +460,26 @@ export default function CreateQuestionPage() {
         <Card>
           <CardHeader>
             <CardTitle>Solution / Explanation</CardTitle>
-            <CardDescription>Provide detailed explanation for the correct answer</CardDescription>
+            <CardDescription>Provide detailed explanation with math formulas if needed</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Solution (English)</Label>
-              <Textarea
-                placeholder="Enter solution/explanation..."
-                rows={4}
+              <MathEditor
                 value={formData.solution}
-                onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, solution: value })}
+                placeholder="Enter solution/explanation with math..."
+                rows={4}
               />
             </div>
 
             <div className="space-y-2">
               <Label>Solution (Hindi) - Optional</Label>
-              <Textarea
+              <MathEditor
+                value={formData.solutionHindi}
+                onChange={(value) => setFormData({ ...formData, solutionHindi: value })}
                 placeholder="Enter Hindi translation..."
                 rows={3}
-                value={formData.solutionHindi}
-                onChange={(e) => setFormData({ ...formData, solutionHindi: e.target.value })}
               />
             </div>
           </CardContent>
@@ -595,7 +596,9 @@ export default function CreateQuestionPage() {
                   <img src={formData.imageUrl} alt="Question" className="max-w-full h-auto rounded" />
                 </div>
               )}
-              <p className="font-medium mb-4" dangerouslySetInnerHTML={{ __html: formData.question }} />
+              <div className="font-medium mb-4">
+                <MathRenderer content={formData.question} />
+              </div>
               {formData.imageUrl && formData.imagePosition === 'below' && (
                 <div className="mb-4">
                   <img src={formData.imageUrl} alt="Question" className="max-w-full h-auto rounded" />
@@ -615,7 +618,7 @@ export default function CreateQuestionPage() {
                       }`}
                     >
                       <span className="font-medium mr-2">{option.key}.</span>
-                      <span dangerouslySetInnerHTML={{ __html: option.value }} />
+                      <MathRenderer content={option.value} className="inline" />
                       {formData.correctOption === option.key && (
                         <Badge className="ml-2 bg-green-600">Correct</Badge>
                       )}
@@ -626,7 +629,7 @@ export default function CreateQuestionPage() {
               {formData.solution && (
                 <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                   <p className="font-medium text-blue-800 mb-2">Solution:</p>
-                  <p dangerouslySetInnerHTML={{ __html: formData.solution }} />
+                  <MathRenderer content={formData.solution} />
                 </div>
               )}
             </div>

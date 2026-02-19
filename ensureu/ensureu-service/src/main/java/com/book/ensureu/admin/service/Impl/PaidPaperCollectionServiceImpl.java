@@ -123,20 +123,35 @@ public class PaidPaperCollectionServiceImpl implements PaidPaperCollectionServic
 
 	@Override
 	public void updatePaidPaperState(String id, PaperStateStatus paperStateStatus) {
+		updatePaidPaperStateWithValidity(id, paperStateStatus, null, null);
+	}
+
+	@Override
+	public void updatePaidPaperStateWithValidity(String id, PaperStateStatus paperStateStatus,
+			Long validityStartDate, Long validityEndDate) {
 
 		Optional<PaidPaperCollection> paidPaperCollectionOptional = testPaperCollectionRepository.findById(id);
 		if (paidPaperCollectionOptional.isPresent()) {
 			PaidPaperCollection paidPaperCollection = paidPaperCollectionOptional.get();
-			if (paperStateStatus.equals(PaperStateStatus.ACTIVE)
-					&& paidPaperCollection.getPaperStateStatus().equals(PaperStateStatus.DRAFT)) {
-				paidPaperCollection.setPaperStateStatus(paperStateStatus);
-			} else if (paperStateStatus.equals(PaperStateStatus.APPROVED)
-					&& paidPaperCollection.getPaperStateStatus().equals(PaperStateStatus.ACTIVE)) {
-				paidPaperCollection.setPaperStateStatus(paperStateStatus);
-			} else {
-				throw new IllegalAccessError("Status is worng to update");
+
+			// Update status
+			paidPaperCollection.setPaperStateStatus(paperStateStatus);
+
+			// Update validity dates if provided (typically for ACTIVE status)
+			if (validityStartDate != null) {
+				paidPaperCollection.setValidityRangeStartDateTime(validityStartDate);
 			}
-		}		
+			if (validityEndDate != null) {
+				paidPaperCollection.setValidityRangeEndDateTime(validityEndDate);
+			}
+
+			// Save the updated paper
+			testPaperCollectionRepository.save(paidPaperCollection);
+			LOGGER.info("Updated Paid Paper state to {} for id {}", paperStateStatus, id);
+		} else {
+			LOGGER.warn("Paid Paper not found for id {}", id);
+			throw new IllegalArgumentException("Paper not found with id: " + id);
+		}
 	}
 
 
@@ -187,6 +202,27 @@ public class PaidPaperCollectionServiceImpl implements PaidPaperCollectionServic
 		Query query = Query.query(Criteria.where("id").in(paperIdList));
 		Update update = Update.update("taken",true);
 		mongoTemplate.findAndModify(query,update, PaidPaperCollection.class);
+	}
+
+	@Override
+	public void deletePaidPaper(String id) throws IllegalArgumentException {
+		Optional<PaidPaperCollection> paidPaperCollectionOptional = testPaperCollectionRepository.findById(id);
+		if (paidPaperCollectionOptional.isPresent()) {
+			PaidPaperCollection paidPaperCollection = paidPaperCollectionOptional.get();
+
+			// Only allow deletion of DRAFT papers (SUPERADMIN access is enforced at API level)
+			if (paidPaperCollection.getPaperStateStatus() == PaperStateStatus.ACTIVE ||
+					paidPaperCollection.getPaperStateStatus() == PaperStateStatus.APPROVED) {
+				LOGGER.warn("Cannot delete ACTIVE/APPROVED paper: {}", id);
+				throw new IllegalArgumentException("Cannot delete paper with status: " + paidPaperCollection.getPaperStateStatus());
+			}
+
+			testPaperCollectionRepository.deleteById(id);
+			LOGGER.info("Deleted Paid Paper with id {}", id);
+		} else {
+			LOGGER.warn("Paid Paper not found for deletion: {}", id);
+			throw new IllegalArgumentException("Paper not found with id: " + id);
+		}
 	}
 
 }

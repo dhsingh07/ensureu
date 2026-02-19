@@ -199,9 +199,46 @@ export function useExamAnalysis() {
 
   return useMutation({
     mutationFn: async (request: ExamAnalysisRequest) => {
+      // Convert camelCase to snake_case for Python backend
+      // Also ensure arrays are never null (Python expects lists)
+      const snakeCaseRequest = {
+        user_id: request.userId,
+        exam_id: request.examId,
+        exam_name: request.examName || '',
+        score: request.score,
+        total_marks: request.totalMarks,
+        time_taken_minutes: request.timeTakenMinutes,
+        total_time_minutes: request.totalTimeMinutes,
+        percentile: request.percentile,
+        section_scores: (request.sectionScores || []).map(s => ({
+          section_name: s.sectionName,
+          score: s.score,
+          max_score: s.maxScore,
+          percentage: s.percentage,
+          questions_attempted: s.questionsAttempted,
+          questions_correct: s.questionsCorrect,
+        })),
+        question_results: (request.questionResults || []).map(q => ({
+          question_id: q.questionId,
+          topic: q.topic,
+          subtopic: q.subtopic,
+          difficulty: q.difficulty,
+          student_answer: q.studentAnswer,
+          correct_answer: q.correctAnswer,
+          is_correct: q.isCorrect,
+          time_taken_seconds: q.timeTakenSeconds,
+          marks_obtained: q.marksObtained,
+          max_marks: q.maxMarks,
+        })),
+        avg_score: request.avgScore,
+        trend: request.trend,
+        weak_areas: request.weakAreas || [],
+        exams_count: request.examsCount,
+      };
+
       const response = await post<ApiResponse<ExamAnalysisResponse>>(
         API_URLS.AI.ANALYZE_EXAM,
-        request
+        snakeCaseRequest
       );
       if (response.status !== 200) {
         throw new Error(response.message || 'Failed to analyze exam');

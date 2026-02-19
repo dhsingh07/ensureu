@@ -50,19 +50,48 @@ export interface UserManagementItem {
 }
 
 export interface AdminPaperListItem {
-  paperId: string;
+  id?: string; // Backend returns 'id' not 'paperId'
+  paperId?: string; // Frontend uses this
   paperName: string;
-  paperType: PaperCategory;
-  paperSubCategory: string;
+  paperType?: 'SSC' | 'BANK'; // Root type (SSC or BANK)
+  paperCategory?: PaperCategory; // Specific category (SSC_CGL, BANK_PO, etc.)
+  paperSubCategory?: string;
   testType: 'FREE' | 'PAID';
   totalScore: number;
   totalTime: number;
-  totalQuestions?: number;
+  totalQuestionCount?: number; // Backend uses this
+  totalQuestions?: number; // Frontend alias
   negativeMarks?: number;
   perQuestionScore?: number;
-  status: PaperStateStatus;
+  status?: PaperStateStatus;
+  paperStateStatus?: PaperStateStatus;
+  description?: string;
+  instructions?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Validity dates (timestamps)
+  validityRangeStartDateTime?: number;
+  validityRangeEndDateTime?: number;
+  createDateTime?: number;
+  // Pattern with sections and questions (for full paper data)
+  pattern?: {
+    sections: Array<{
+      id: string;
+      title: string;
+      sectionType: string;
+      subSections?: Array<{
+        id: string;
+        title: string;
+        questionData?: {
+          questions: Array<any>;
+        };
+      }>;
+      questionData?: {
+        questions: Array<any>;
+      };
+      timeTakenSecond: number;
+    }>;
+  };
 }
 
 export interface RoleAssignmentDto {

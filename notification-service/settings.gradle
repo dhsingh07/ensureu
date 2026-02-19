@@ -1,0 +1,5 @@
+/*
+ * EnsureU Notification Service
+ * A product of GrayscaleLabs AI Pvt Ltd.
+ */
+rootProject.name = 'notification-service'

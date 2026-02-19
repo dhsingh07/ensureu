@@ -1,7 +1,7 @@
 // Admin hooks - migrated from Angular admin.service.ts
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post, put } from '@/lib/api/client';
+import { get, post, put, del } from '@/lib/api/client';
 import { API_URLS } from '@/lib/constants/api-urls';
 import { useUIStore } from '@/stores/ui-store';
 import type {
@@ -40,6 +40,23 @@ export function useDashboardStats() {
   });
 }
 
+// Helper to get paperType (SSC/BANK) from paperCategory (SSC_CGL, BANK_PO, etc.)
+function getPaperTypeFromCategory(category: PaperCategory): 'SSC' | 'BANK' {
+  if (category.startsWith('SSC')) return 'SSC';
+  if (category.startsWith('BANK')) return 'BANK';
+  return 'SSC';
+}
+
+// Normalize paper response from backend
+function normalizePaper(paper: any): AdminPaperListItem {
+  return {
+    ...paper,
+    paperId: paper.id || paper.paperId, // Backend uses 'id'
+    totalQuestions: paper.totalQuestionCount || paper.totalQuestions,
+    status: paper.paperStateStatus || paper.status || 'DRAFT',
+  };
+}
+
 // Paper list for admin (requires pagination params)
 export function useAdminPaperList(
   category: PaperCategory,
@@ -48,17 +65,34 @@ export function useAdminPaperList(
   size = 50,
   enabled = true
 ) {
+  // Backend expects paperType (SSC/BANK), not paperCategory (SSC_CGL/BANK_PO)
+  const paperType = getPaperTypeFromCategory(category);
+
   return useQuery({
     queryKey: adminKeys.paperList(category, freePaid),
     queryFn: async () => {
-      const response = await get<{ content: AdminPaperListItem[]; totalElements: number } | AdminPaperListItem[]>(
-        `${API_URLS.ADMIN.PAPER_LIST}/${category}/${freePaid}?page=${page}&size=${size}`
+      const response = await get<{ content: any[]; totalElements: number } | any[]>(
+        `${API_URLS.ADMIN.PAPER_LIST}/${paperType}/${freePaid}?page=${page}&size=${size}`
       );
+
+      let papers: any[] = [];
+
       // Handle both paginated and array responses
       if (response && 'content' in response) {
-        return response.content || [];
+        papers = response.content || [];
+      } else {
+        papers = response || [];
       }
-      return response || [];
+
+      // Normalize papers and filter by category
+      return papers
+        .map(normalizePaper)
+        .filter(p => {
+          // Filter by specific category if provided
+          const matchesCategory = p.paperCategory === category ||
+                                  (p.paperCategory as string)?.startsWith(category.split('_')[0]);
+          return matchesCategory;
+        });
     },
     enabled,
     staleTime: 2 * 60 * 1000,
@@ -192,6 +226,22 @@ export function useUpdateFeatureConfig() {
   });
 }
 
+// Get paper by ID
+export function useAdminPaperById(paperId: string, testType: string = 'FREE', enabled = true) {
+  return useQuery({
+    queryKey: [...adminKeys.papers(), 'detail', testType, paperId],
+    queryFn: async () => {
+      // Backend expects: /admin/paper/getbyid/{testType}/{id}
+      const response = await get<AdminPaperListItem>(
+        `${API_URLS.ADMIN.PAPER_GET_BY_ID}/${testType}/${paperId}`
+      );
+      return response;
+    },
+    enabled: enabled && !!paperId && paperId !== 'new',
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 // Paper CRUD operations
 export function useCreatePaper() {
   const queryClient = useQueryClient();
@@ -217,7 +267,8 @@ export function useUpdatePaper() {
 
   return useMutation({
     mutationFn: async (paperData: Partial<AdminPaperListItem>) => {
-      return put<AdminPaperListItem>(API_URLS.ADMIN.PAPER_SAVE, paperData);
+      // Backend uses POST for both create and update
+      return post<AdminPaperListItem>(API_URLS.ADMIN.PAPER_SAVE, paperData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.papers() });
@@ -231,24 +282,63 @@ export function useUpdatePaper() {
 
 export function useUpdatePaperStatus() {
   const queryClient = useQueryClient();
-  const showAlert = useUIStore((state) => state.showAlert);
 
   return useMutation({
     mutationFn: async ({
       paperId,
       status,
+      testType = 'FREE',
+      validityStartDate,
+      validityEndDate,
     }: {
       paperId: string;
       status: string;
+      testType?: string;
+      validityStartDate?: number;
+      validityEndDate?: number;
     }) => {
-      return put<void>(`${API_URLS.ADMIN.PAPER_UPDATE_STATE}/${paperId}/${status}`, {});
+      // Build query parameters
+      let url = `${API_URLS.ADMIN.PAPER_UPDATE_STATE}/${testType}?id=${paperId}&paperState=${status}`;
+
+      if (validityStartDate) {
+        url += `&validityStartDate=${validityStartDate}`;
+      }
+      if (validityEndDate) {
+        url += `&validityEndDate=${validityEndDate}`;
+      }
+
+      return put<void>(url, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.papers() });
-      showAlert('success', 'Paper status updated');
     },
-    onError: () => {
-      showAlert('error', 'Failed to update paper status');
+  });
+}
+
+// Delete paper (SUPERADMIN only)
+export function useDeletePaper() {
+  const queryClient = useQueryClient();
+  const showAlert = useUIStore((state) => state.showAlert);
+
+  return useMutation({
+    mutationFn: async ({
+      paperId,
+      testType = 'FREE',
+    }: {
+      paperId: string;
+      testType?: string;
+    }) => {
+      return del<{ body: boolean; status: number; message: string }>(
+        `${API_URLS.ADMIN.PAPER_DELETE}/${testType}/${paperId}`
+      );
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.papers() });
+      showAlert('success', response?.message || 'Paper deleted successfully');
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to delete paper';
+      showAlert('error', message);
     },
   });
 }

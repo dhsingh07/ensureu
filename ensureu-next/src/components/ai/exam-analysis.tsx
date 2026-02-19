@@ -82,40 +82,42 @@ export function ExamAnalysisDialog({ examData, trigger, autoLoad = false }: Exam
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-teal-600" />
             AI Performance Analysis
           </DialogTitle>
         </DialogHeader>
 
-        {isPending ? (
-          <div className="flex flex-col items-center justify-center py-16 space-y-4">
-            <div className="relative">
-              <Loader2 className="h-12 w-12 animate-spin text-teal-600" />
-              <Sparkles className="h-6 w-6 text-teal-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        <div className="flex-1 overflow-y-auto pr-2">
+          {isPending ? (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 animate-spin text-teal-600" />
+                <Sparkles className="h-6 w-6 text-teal-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <div className="text-center">
+                <p className="font-medium">Analyzing your performance...</p>
+                <p className="text-sm text-muted-foreground">
+                  Our AI is evaluating your answers and generating insights
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="font-medium">Analyzing your performance...</p>
-              <p className="text-sm text-muted-foreground">
-                Our AI is evaluating your answers and generating insights
+          ) : analysis ? (
+            <ExamAnalysisContent analysis={analysis} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <AlertTriangle className="h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-muted-foreground">
+                Unable to generate analysis. Please try again.
               </p>
+              <Button variant="outline" className="mt-4" onClick={() => mutate(examData)}>
+                Retry Analysis
+              </Button>
             </div>
-          </div>
-        ) : analysis ? (
-          <ExamAnalysisContent analysis={analysis} />
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertTriangle className="h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-muted-foreground">
-              Unable to generate analysis. Please try again.
-            </p>
-            <Button variant="outline" className="mt-4" onClick={() => mutate(examData)}>
-              Retry Analysis
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

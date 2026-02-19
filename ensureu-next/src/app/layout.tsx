@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     'government exams',
     'free mock tests',
   ],
-  authors: [{ name: 'EnsureU' }],
-  creator: 'EnsureU',
-  publisher: 'EnsureU',
+  authors: [{ name: 'GrayscaleLabs AI Pvt Ltd' }],
+  creator: 'GrayscaleLabs AI Pvt Ltd',
+  publisher: 'GrayscaleLabs AI Pvt Ltd',
   formatDetection: {
     email: false,
     address: false,

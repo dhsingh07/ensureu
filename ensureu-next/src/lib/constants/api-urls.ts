@@ -130,6 +130,8 @@ export const API_URLS = {
     COLLECTION_CREATE: 'quizPaperColl/create',
     COLLECTION_GET_BY_ID: 'quizPaperColl/getbyid',
     COLLECTION_LIST: 'quizPaperColl/list',
+    COLLECTION_UPDATE: 'quizPaperColl/update',
+    COLLECTION_DELETE: 'quizPaperColl/delete',
   },
 
   // Admin
@@ -146,6 +148,7 @@ export const API_URLS = {
     PAPER_UPDATE_STATE: 'admin/paper/save',
     PAPER_LIST: 'admin/paper/list',
     PAPER_GET_BY_ID: 'admin/paper/getbyid',
+    PAPER_DELETE: 'admin/paper/delete',
     PAPER_UPLOAD_IMAGE: 'admin/paper/upload/image',
     PAPER_SIMPLE_SAVE: 'admin/paper/simple/save',
     PAPER_SIMPLE_PREVIEW: 'admin/paper/simple/preview',

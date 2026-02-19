@@ -4,11 +4,16 @@ export function OrganizationStructuredData() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'EnsureU',
+    name: 'GrayscaleLabs AI Pvt Ltd',
+    legalName: 'GrayscaleLabs AI Private Limited',
     url: siteUrl,
     logo: `${siteUrl}/logo.png`,
     description:
-      'EnsureU is an online assessment platform for SSC, Bank PO, and other competitive exam preparation.',
+      'GrayscaleLabs AI Pvt Ltd - EnsureU is an online assessment platform for SSC, Bank PO, and other competitive exam preparation.',
+    brand: {
+      '@type': 'Brand',
+      name: 'EnsureU',
+    },
     sameAs: [],
   };
 
@@ -52,10 +57,14 @@ export function EducationalOrganizationStructuredData() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'EducationalOrganization',
-    name: 'EnsureU',
+    name: 'EnsureU by GrayscaleLabs AI',
     url: siteUrl,
+    parentOrganization: {
+      '@type': 'Organization',
+      name: 'GrayscaleLabs AI Pvt Ltd',
+    },
     description:
-      'Online assessment and exam preparation platform for SSC CGL, SSC CPO, SSC CHSL, Bank PO and other competitive exams in India.',
+      'EnsureU by GrayscaleLabs AI - Online assessment and exam preparation platform for SSC CGL, SSC CPO, SSC CHSL, Bank PO and other competitive exams in India.',
     areaServed: {
       '@type': 'Country',
       name: 'India',

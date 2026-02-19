@@ -10,11 +10,32 @@ import com.book.ensureu.constant.PaperCategory;
 import com.book.ensureu.constant.PaperSubCategory;
 import com.book.ensureu.constant.PaperType;
 import com.book.ensureu.constant.TestType;
+import com.book.ensureu.admin.constant.PaperStateStatus;
 import com.book.ensureu.model.QuizPaperCollection;
 
 public interface QuizPaperCollectionRepository extends MongoRepository<QuizPaperCollection, String>{
 
 	public Optional<QuizPaperCollection> findById(String id);
+
+	/**
+	 * Find active quizzes for a paper category where current time is within validity range
+	 */
+	@Query(value = "{'paperStateStatus': ?0, 'paperCategory': ?1, 'validityRangeStartDateTime': {$lte: ?2}, 'validityRangeEndDateTime': {$gte: ?2}}",
+			fields = "{ paperName : 1, _id : -1, id : -1, paperType : 1, paperCategory : 1, paperSubCategory : 1, testType: 1, paperSubCategoryName: 1, totalScore: 1,totalTime: 1,negativeMarks: 1,perQuestionScore: 1, totalQuestionCount: 1,createDateTime:1, validityRangeStartDateTime:1, validityRangeEndDateTime:1, paperStateStatus:1, pattern:-1,paper:-1}")
+	public List<QuizPaperCollection> findActiveQuizzesForCategory(
+			PaperStateStatus paperStateStatus,
+			PaperCategory paperCategory,
+			Long currentTimeMs);
+
+	/**
+	 * Find active quizzes for a paper type where current time is within validity range
+	 */
+	@Query(value = "{'paperStateStatus': ?0, 'paperType': ?1, 'validityRangeStartDateTime': {$lte: ?2}, 'validityRangeEndDateTime': {$gte: ?2}}",
+			fields = "{ paperName : 1, _id : -1, id : -1, paperType : 1, paperCategory : 1, paperSubCategory : 1, testType: 1, paperSubCategoryName: 1, totalScore: 1,totalTime: 1,negativeMarks: 1,perQuestionScore: 1, totalQuestionCount: 1,createDateTime:1, validityRangeStartDateTime:1, validityRangeEndDateTime:1, paperStateStatus:1, pattern:-1,paper:-1}")
+	public List<QuizPaperCollection> findActiveQuizzesForPaperType(
+			PaperStateStatus paperStateStatus,
+			PaperType paperType,
+			Long currentTimeMs);
 
 	public List<QuizPaperCollection> findByPaperType(String paperType);
 

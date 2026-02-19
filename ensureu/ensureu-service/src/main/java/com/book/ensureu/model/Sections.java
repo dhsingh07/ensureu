@@ -5,7 +5,8 @@ import java.util.List;
 import com.book.ensureu.constant.SectionType;
 
 public class Sections<SB extends SubSections<Question<Problem>>> {
-	
+
+	private String id;
 	private String title;
 	private int SNo;
 	private long minTimeInSecond;
@@ -15,7 +16,7 @@ public class Sections<SB extends SubSections<Question<Problem>>> {
 	private int correctCount;
 	private int inCorrectCount;
 	private SectionType sectionType;
-	//private QuestionData<Q> questionData;
+	private QuestionData<Question<Problem>> questionData;
 	private List<SB> subSections;
 	private double score;
 	private double scoreInSection;
@@ -72,13 +73,21 @@ public class Sections<SB extends SubSections<Question<Problem>>> {
 		this.questionCount = questionCount;
 	}
 
-	/*public QuestionData<Q> getQuestionData() {
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public QuestionData<Question<Problem>> getQuestionData() {
 		return questionData;
 	}
 
-	public void setQuestionData(QuestionData<Q> questionData) {
+	public void setQuestionData(QuestionData<Question<Problem>> questionData) {
 		this.questionData = questionData;
-	}*/
+	}
 
 	public SectionType getSectionType() {
 		return sectionType;

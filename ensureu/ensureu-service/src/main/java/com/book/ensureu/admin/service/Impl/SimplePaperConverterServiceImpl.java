@@ -165,8 +165,8 @@ public class SimplePaperConverterServiceImpl implements SimplePaperConverterServ
 
         Problem problem = new Problem();
         problem.setValue(qDto.getQuestionText());
-        problem.setCo(qDto.getCorrectOption());
-        problem.setSo(0);
+        problem.setCo(java.util.Arrays.asList(String.valueOf(qDto.getCorrectOption())));
+        problem.setSo(java.util.Collections.emptyList());
         problem.setImage(qDto.getQuestionImage());
 
         // Build 4 options

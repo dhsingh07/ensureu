@@ -119,8 +119,8 @@ export default function UserManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.userId}>
+                  {users.map((user, index) => (
+                    <TableRow key={user.userId || user.id || user.email || `user-${index}`}>
                       <TableCell className="font-medium">
                         {user.firstName} {user.lastName}
                       </TableCell>
@@ -133,7 +133,7 @@ export default function UserManagementPage() {
                         <Select
                           value={user.roles?.[0] || 'ROLE_USER'}
                           onValueChange={(value) =>
-                            handleRoleChange(user.userId, value)
+                            handleRoleChange(user.userId || String(user.id), value)
                           }
                           disabled={assignRoleMutation.isPending}
                         >

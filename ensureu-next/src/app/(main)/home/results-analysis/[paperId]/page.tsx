@@ -213,7 +213,7 @@ export default function ResultsAnalysisPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
+      <Tabs id="results-tabs" value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview" className="gap-2">
             <Trophy className="h-4 w-4" />

@@ -439,7 +439,7 @@ export default function SubscriptionPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="all" className="space-y-6">
+      <Tabs id="subscription-tabs" defaultValue="all" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
           <TabsTrigger value="all">All Plans ({combinedPlans.length})</TabsTrigger>
           <TabsTrigger value="subscribed">Subscribed ({activePlans.length + expiredPlans.length})</TabsTrigger>

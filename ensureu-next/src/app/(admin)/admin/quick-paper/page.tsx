@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MathEditor } from '@/components/math';
 import {
   Select,
   SelectContent,
@@ -299,12 +300,12 @@ export default function QuickPaperPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Question Text</Label>
-                <Textarea
+                <MathEditor
                   value={question.question}
-                  onChange={(e) =>
-                    updateQuestion(question.id, 'question', e.target.value)
+                  onChange={(value) =>
+                    updateQuestion(question.id, 'question', value)
                   }
-                  placeholder="Enter the question"
+                  placeholder="Enter the question with math symbols..."
                   rows={2}
                 />
               </div>

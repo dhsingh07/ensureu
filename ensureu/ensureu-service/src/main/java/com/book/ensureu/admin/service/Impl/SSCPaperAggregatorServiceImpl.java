@@ -358,7 +358,7 @@ public class SSCPaperAggregatorServiceImpl<T> implements PaperAggregatorService<
 			LOGGER.info("guid id:: " + id);
 
 			Problem problem = new Problem();
-			problem.setCo(csvColumnBean.getCorrectOption());
+			problem.setCo(java.util.Arrays.asList(String.valueOf(csvColumnBean.getCorrectOption())));
 			if (csvColumnBean.getQuestionImage() != null && !csvColumnBean.getQuestionImage().isEmpty()) {
 
 				LOGGER.info("filePath " + imagePath);

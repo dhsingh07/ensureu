@@ -8,6 +8,15 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
+/**
+ * EnsureU - Assessment Platform for Competitive Exams
+ * A product of GrayscaleLabs AI Pvt Ltd.
+ *
+ * Main Spring Boot Application entry point.
+ *
+ * @author GrayscaleLabs AI Pvt Ltd
+ * @since 1.0.0
+ */
 @Configuration
 @EnableAutoConfiguration
 @ComponentScan(basePackages = {"com.book.ensureu","com.ensureu.commons.gcloud"})
