@@ -30,12 +30,14 @@ services:
     ports:
       - "8282:8282"
     environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+
       # MongoDB Configuration
-      SPRING_DATA_MONGODB_URI: mongodb://appUser:${MONGO_APP_PASSWORD:-AppPassword123}@mongodb:27017/assessu
+      MONGODB_URI: mongodb://appUser:${MONGO_APP_PASSWORD:-AppPassword123}@mongodb:27017/ensureu?authSource=ensureu
 
       # JWT Configuration
       JWT_SECRET: ${JWT_SECRET:-YourSuperSecretJWTKeyChangeInProduction}
-      JWT_EXPIRYTIME: 3600000
 
       # Server Configuration
       SERVER_PORT: 8282
@@ -54,13 +56,22 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
 
       # Google OAuth
-      GOOGLE_TOKEN_VALIDATE_URL: https://oauth2.googleapis.com/tokeninfo?id_token=
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
 
-      # Facebook OAuth
-      FACEBOOK_TOKEN_VALIDATE_URL: https://graph.facebook.com/me?fields=id,name,email&access_token=
+      # S3 Storage
+      STORAGE_TYPE: ${STORAGE_TYPE:-S3}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-ensureu-assets-prod}
+      S3_REGION: ${S3_REGION:-ap-south-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_PREFIX: ${S3_PREFIX:-uploads}
 
-      # Allow circular references (as per your config)
-      SPRING_MAIN_ALLOW_CIRCULAR_REFERENCES: true
+      # AI Service
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8000}
+
+      # Notification (optional)
+      NOTIFICATION_KEY: ${NOTIFICATION_KEY:-}
+      NOTIFICATION_USER: ${NOTIFICATION_USER:-}
 
     depends_on:
       mongodb:
