@@ -159,6 +159,10 @@ export const API_URLS = {
     USER_SEARCH: 'admin/user-management/search',
     USER_ASSIGN_ROLE: 'admin/user-management/assign-role',
 
+    // CSV Upload
+    PAPER_CSV_UPLOAD: 'admin/paper/upload/csv',
+    PAPER_CSV_FORMAT: 'admin/paper/upload/csv/format',
+
     // Question Bank
     QUESTION_BANK_CREATE: 'admin/question-bank/create',
     QUESTION_BANK_UPDATE: 'admin/question-bank/update',

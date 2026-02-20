@@ -43,7 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAdminPaperList, useUpdatePaperStatus, useCreatePaper, useUpdatePaper, useDeletePaper } from '@/hooks/use-admin';
+import { useAdminPaperList, useUpdatePaperStatus, useCreatePaper, useUpdatePaper, useDeletePaper, useUploadCsv } from '@/hooks/use-admin';
 import { useUIStore } from '@/stores/ui-store';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -62,6 +62,8 @@ import {
   CheckCircle2,
   Clock,
   Trophy,
+  Upload,
+  FileSpreadsheet,
 } from 'lucide-react';
 import type { PaperCategory, TestType, PaperStateStatus, PaperType } from '@/types/paper';
 
@@ -519,6 +521,8 @@ export default function PaperManagementPage() {
   const [statusFilter, setStatusFilter] = useState<PaperStateStatus | 'ALL'>('ALL');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTestType, setCreateTestType] = useState<'FREE' | 'PAID'>('FREE');
+  const [showCsvUploadDialog, setShowCsvUploadDialog] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
 
   // Activation dialog state
   const [activatingPaper, setActivatingPaper] = useState<Paper | null>(null);
@@ -540,6 +544,7 @@ export default function PaperManagementPage() {
 
   const updateStatusMutation = useUpdatePaperStatus();
   const deletePaperMutation = useDeletePaper();
+  const uploadCsvMutation = useUploadCsv();
 
   // Combine papers
   const papers = useMemo(() => {
@@ -693,6 +698,32 @@ export default function PaperManagementPage() {
     setShowCreateDialog(true);
   };
 
+  const handleCsvUpload = async () => {
+    if (!csvFile) {
+      showAlert('error', 'Please select a CSV file');
+      return;
+    }
+    try {
+      await uploadCsvMutation.mutateAsync(csvFile);
+      setShowCsvUploadDialog(false);
+      setCsvFile(null);
+      refetch();
+    } catch (error) {
+      // Error is handled by the mutation
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showAlert('error', 'Please select a valid CSV file');
+        return;
+      }
+      setCsvFile(file);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -701,25 +732,30 @@ export default function PaperManagementPage() {
           <h1 className="text-2xl font-bold text-slate-900">Paper Management</h1>
           <p className="text-slate-600">Create and manage test papers (Free & Paid)</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create Paper
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => openCreateDialog('FREE')}>
-                <Badge variant="secondary" className="mr-2">FREE</Badge>
-                Create Free Paper
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openCreateDialog('PAID')}>
-                <Badge variant="default" className="mr-2">PAID</Badge>
-                Create Paid Paper
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setShowCsvUploadDialog(true)}>
+            <Upload className="h-4 w-4" />
+            Upload CSV
+          </Button>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Paper
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => openCreateDialog('FREE')}>
+                  <Badge variant="secondary" className="mr-2">FREE</Badge>
+                  Create Free Paper
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openCreateDialog('PAID')}>
+                  <Badge variant="default" className="mr-2">PAID</Badge>
+                  Create Paid Paper
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle>Create {createTestType} Paper</DialogTitle>
@@ -735,7 +771,74 @@ export default function PaperManagementPage() {
             />
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* CSV Upload Dialog */}
+      <Dialog open={showCsvUploadDialog} onOpenChange={(open) => {
+        setShowCsvUploadDialog(open);
+        if (!open) setCsvFile(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Upload Paper from CSV
+            </DialogTitle>
+            <DialogDescription>
+              Upload a CSV file containing questions to create a new paper. The file should follow the SSC paper format.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="csvFile">CSV File</Label>
+              <Input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="cursor-pointer"
+              />
+              {csvFile && (
+                <p className="text-sm text-slate-500">
+                  Selected: {csvFile.name} ({(csvFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg text-sm space-y-2">
+              <p className="font-medium text-slate-700">CSV Format Requirements:</p>
+              <ul className="list-disc list-inside text-slate-600 space-y-1">
+                <li>First row: Column headers</li>
+                <li>Required: paperType, paperCategory, paperName, sectionName, question, options</li>
+                <li>correctOption values: 1, 2, 3, or 4</li>
+                <li>testType: FREE (default) or PAID</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCsvUploadDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCsvUpload}
+              disabled={!csvFile || uploadCsvMutation.isPending}
+              className="gap-2"
+            >
+              {uploadCsvMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Upload Paper
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

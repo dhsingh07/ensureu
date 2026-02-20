@@ -63,6 +63,7 @@ public final class StorageFolderConstants {
     public static final String GENERATED_CONTENT = "generated-content";
     public static final String USER_CONTENT = "user-content";
     public static final String BLOG = "blog";
+    public static final String CSV_UPLOADS = "csv-uploads";
 
     // Paper sub-folders
     public static final String FREE = "free";
@@ -170,6 +171,16 @@ public final class StorageFolderConstants {
      */
     public static String buildBlogContentFolder(String blogId) {
         return String.format("%s/%s/%s", BLOG, CONTENT, blogId);
+    }
+
+    /**
+     * Build CSV uploads folder path
+     * @param category Paper category
+     * @return Folder path like "csv-uploads/ssc-cgl"
+     */
+    public static String buildCsvUploadsFolder(String category) {
+        String categoryFolder = categoryToFolderName(category);
+        return String.format("%s/%s", CSV_UPLOADS, categoryFolder);
     }
 
     /**

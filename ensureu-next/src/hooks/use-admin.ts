@@ -1,7 +1,7 @@
 // Admin hooks - migrated from Angular admin.service.ts
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post, put, del } from '@/lib/api/client';
+import { get, post, put, del, uploadFile } from '@/lib/api/client';
 import { API_URLS } from '@/lib/constants/api-urls';
 import { useUIStore } from '@/stores/ui-store';
 import type {
@@ -338,6 +338,52 @@ export function useDeletePaper() {
     },
     onError: (error: any) => {
       const message = error?.response?.data?.message || 'Failed to delete paper';
+      showAlert('error', message);
+    },
+  });
+}
+
+// CSV Upload response type
+interface CsvUploadResponse {
+  status: number;
+  message: string;
+  body: {
+    paperId: string;
+    paperName: string;
+    testType: string;
+    totalQuestions: number;
+    sections: number;
+    csvUrl?: string;
+  };
+}
+
+// Upload CSV paper
+export function useUploadCsv() {
+  const queryClient = useQueryClient();
+  const showAlert = useUIStore((state) => state.showAlert);
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const response = await uploadFile<CsvUploadResponse>(API_URLS.ADMIN.PAPER_CSV_UPLOAD, file, 'file');
+      // Check if response indicates error (status 0)
+      if (response.status === 0 || !response.body) {
+        throw new Error(response.message || 'Failed to upload CSV');
+      }
+      return response;
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.papers() });
+      const { paperName, totalQuestions, sections } = response.body;
+      showAlert(
+        'success',
+        `Paper "${paperName}" uploaded: ${totalQuestions} questions in ${sections} sections`
+      );
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to upload CSV';
       showAlert('error', message);
     },
   });

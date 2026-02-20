@@ -565,7 +565,7 @@ export default function PaperQuestionsPage({ params }: PaperQuestionsParams) {
             const sectionQuestions = getQuestionsFromSection(section);
             return (
               <Collapsible
-                key={section.id}
+                key={section.id || `section-${sectionIndex}`}
                 defaultOpen={true}
                 className="border rounded-lg"
               >
@@ -612,7 +612,7 @@ export default function PaperQuestionsPage({ params }: PaperQuestionsParams) {
                     {/* Direct section questions */}
                     {section.questionData?.questions?.map((question, qIndex) => (
                       <QuestionCard
-                        key={question.id}
+                        key={question.id || `sq-${sectionIndex}-${qIndex}`}
                         question={question}
                         index={qIndex}
                         onEdit={() => handleEditQuestion(section.id, undefined, qIndex, question)}
@@ -621,12 +621,12 @@ export default function PaperQuestionsPage({ params }: PaperQuestionsParams) {
                     ))}
 
                     {/* Subsection questions */}
-                    {section.subSections?.map((sub) => (
-                      <div key={sub.id} className="pl-4 border-l-2 border-slate-200">
+                    {section.subSections?.map((sub, subIndex) => (
+                      <div key={sub.id || `${section.id}-sub-${subIndex}`} className="pl-4 border-l-2 border-slate-200">
                         <p className="text-sm font-medium text-slate-600 mb-2">{sub.title}</p>
                         {sub.questionData?.questions?.map((question, qIndex) => (
                           <QuestionCard
-                            key={question.id}
+                            key={question.id || `q-${subIndex}-${qIndex}`}
                             question={question}
                             index={qIndex}
                             onEdit={() =>
