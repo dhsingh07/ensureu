@@ -11,6 +11,13 @@
     <property name="LOGGING_FILE_PATH" value="/tmp/ensureu" />
     
 
+    <!-- Console appender for Docker logs -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%5p][%d{"yyyy-MM-dd HH:mm:ss,SSS"}][%.10thread] %logger{16}: %m %n</pattern>
+        </encoder>
+    </appender>
+
     <appender name="FILE"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOGGING_FILE_PATH:-${DEFAULT_LOGGING_FILE_PATH}}/ensureU.log</file>
@@ -38,7 +45,8 @@
         <appender-ref ref="FILE" />
     </appender>
 
-    <root level="DEBUG">
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </root>
 </configuration>

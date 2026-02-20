@@ -34,10 +34,11 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
 
       # MongoDB Configuration
-      MONGODB_URI: mongodb://appUser:${MONGO_APP_PASSWORD:-AppPassword123}@mongodb:27017/ensureu?authSource=ensureu
+      MONGODB_URI: mongodb://appUser:${MONGO_APP_PASSWORD:-AppPassword123}@mongodb:27017/assessu?authSource=assessu
 
       # JWT Configuration
-      JWT_SECRET: ${JWT_SECRET:-YourSuperSecretJWTKeyChangeInProduction}
+      SPRING_JWT_SECRET: ${JWT_SECRET:-YourSuperSecretJWTKeyChangeInProduction}
+      SPRING_JWT_EXPIRATION: 3600
 
       # Server Configuration
       SERVER_PORT: 8282
@@ -54,6 +55,9 @@ services:
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
+
+      # Health Check Configuration
+      MANAGEMENT_HEALTH_MAIL_ENABLED: false
 
       # Google OAuth
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
