@@ -1,253 +1,409 @@
-# EnsureU AWS Deployment Guide (Testing Environment)
+# EnsureU AWS Deployment Guide
 
-This guide walks you through deploying EnsureU on a single AWS EC2 instance using Docker for testing with a group of users.
+This guide walks you through deploying EnsureU (Backend + Frontend) on AWS EC2.
 
 ## Architecture Overview
 
 ```
-AWS EC2 Instance (t3.medium)
-├── Docker: Nginx (reverse proxy on port 80)
-├── Docker: EnsureU App (Spring Boot on port 8282)
-└── Docker: MongoDB (database on port 27017)
+AWS EC2 Instance (t3.medium or t3.large)
+├── Docker: Nginx (reverse proxy on port 80/443)
+├── Docker: EnsureU Backend (Spring Boot on port 8282)
+├── Docker: MongoDB (database on port 27017)
+├── Docker: Next.js Frontend (on port 3000)
+└── AWS S3: File Storage (CSV uploads, images)
 ```
 
-**Estimated Cost:** ~$30-40/month
+**Estimated Cost:** ~$40-60/month
 
 ---
 
 ## Prerequisites
 
 - AWS Account
-- Basic knowledge of SSH and command line
-- Domain name (optional, but recommended for testing)
+- S3 Bucket created for file storage
+- Domain name (optional, but recommended)
+- SSL Certificate (for HTTPS)
 
 ---
 
-## Step 1: Launch EC2 Instance
+## Step 1: AWS S3 Setup (File Storage)
 
-### 1.1 Create EC2 Instance
+### 1.1 Create S3 Bucket
+
+1. Go to AWS Console → S3 → Create Bucket
+2. **Configuration:**
+   - **Bucket name:** `ensureu-assets-prod` (or your preferred name)
+   - **Region:** `ap-south-1` (Mumbai) or nearest to your users
+   - **Block Public Access:** Keep enabled (we'll use signed URLs)
+   - **Versioning:** Enable (recommended)
+
+### 1.2 Create IAM User for S3 Access
+
+1. Go to IAM → Users → Add User
+2. **User name:** `ensureu-s3-user`
+3. **Access type:** Programmatic access
+4. **Permissions:** Attach policy `AmazonS3FullAccess` (or create custom policy)
+5. **Save credentials:** Download Access Key ID and Secret Access Key
+
+### 1.3 S3 Bucket Policy (Optional - for public read access to images)
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::ensureu-assets-prod/uploads/*"
+        }
+    ]
+}
+```
+
+---
+
+## Step 2: Launch EC2 Instance
+
+### 2.1 Create EC2 Instance
 
 1. Log in to AWS Console → EC2 → Launch Instance
 2. **Configuration:**
-   - **Name:** `ensureu-testing`
-   - **AMI:** Ubuntu Server 22.04 LTS (Free Tier eligible)
-   - **Instance Type:** `t3.medium` (2 vCPU, 4 GB RAM)
+   - **Name:** `ensureu-prod`
+   - **AMI:** Ubuntu Server 22.04 LTS
+   - **Instance Type:** `t3.medium` (2 vCPU, 4 GB RAM) or `t3.large` for production
    - **Key Pair:** Create new or select existing (SAVE THE .pem FILE!)
    - **Network Settings:**
      - Allow SSH (port 22) from your IP
      - Allow HTTP (port 80) from anywhere (0.0.0.0/0)
      - Allow HTTPS (port 443) from anywhere (0.0.0.0/0)
-     - Allow Custom TCP (port 8282) from anywhere (for testing)
-   - **Storage:** 30 GB gp3 SSD
+     - Allow Custom TCP (port 8282) from anywhere (for API)
+     - Allow Custom TCP (port 3000) from anywhere (for Frontend dev)
+   - **Storage:** 50 GB gp3 SSD
 
-3. Click **Launch Instance**
-
-### 1.2 Allocate Elastic IP (Recommended)
+### 2.2 Allocate Elastic IP
 
 1. EC2 → Elastic IPs → Allocate Elastic IP address
 2. Associate with your instance
 3. This ensures your IP doesn't change on restart
 
-### 1.3 Update Security Group (After Launch)
-
-Go to EC2 → Security Groups → Select your instance's security group → Edit inbound rules:
-
-```
-Type            Protocol    Port    Source          Description
-SSH             TCP         22      Your IP/32      SSH access
-HTTP            TCP         80      0.0.0.0/0       Public web access
-HTTPS           TCP         443     0.0.0.0/0       Public web access (future)
-Custom TCP      TCP         8282    0.0.0.0/0       Direct app access (testing)
-```
-
 ---
 
-## Step 2: Connect to EC2 Instance
+## Step 3: Connect & Setup EC2
 
 ```bash
-# Download your .pem file and set permissions
+# Connect to EC2
 chmod 400 your-key.pem
-
-# Connect to EC2 instance
 ssh -i your-key.pem ubuntu@YOUR_EC2_PUBLIC_IP
-```
 
----
-
-## Step 3: Install Docker on EC2
-
-Run these commands on your EC2 instance:
-
-```bash
 # Update system
-sudo apt-get update
-sudo apt-get upgrade -y
+sudo apt-get update && sudo apt-get upgrade -y
 
 # Install Docker
 sudo apt-get install -y ca-certificates curl gnupg lsb-release
-
-# Add Docker's official GPG key
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-# Set up Docker repository
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker Engine
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Add current user to docker group (so you don't need sudo)
+# Add user to docker group
 sudo usermod -aG docker ubuntu
 
-# Verify installation
+# Install Git
+sudo apt-get install -y git
+
+# Install Node.js (for frontend)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installations
 docker --version
 docker compose version
+node --version
+npm --version
 
-# IMPORTANT: Log out and log back in for group changes to take effect
+# Log out and back in for docker group to take effect
 exit
-```
-
-**Reconnect to EC2:**
-```bash
-ssh -i your-key.pem ubuntu@YOUR_EC2_PUBLIC_IP
 ```
 
 ---
 
-## Step 4: Install Git and Clone Repository
+## Step 4: Clone Repository
 
 ```bash
-# Install Git
-sudo apt-get install -y git
+ssh -i your-key.pem ubuntu@YOUR_EC2_PUBLIC_IP
 
-# Clone your repository (replace with your repo URL)
+# Clone repositories
 git clone https://github.com/YOUR_USERNAME/ensureu.git
-cd ensureu
+git clone https://github.com/YOUR_USERNAME/ensureu-next.git
 
-# OR if you have the code locally, you can SCP it
-# From your local machine:
-# scp -i your-key.pem -r /path/to/ensureu ubuntu@YOUR_EC2_PUBLIC_IP:~/
+cd ensureu
 ```
 
 ---
 
 ## Step 5: Configure Environment
 
-```bash
-# Copy environment template
-cp .env.example .env
+### 5.1 Backend Configuration
 
-# Edit environment file
+```bash
+cd ~/ensureu
+cp .env.example .env
 nano .env
 ```
 
-**Update these values in `.env`:**
+**Update `.env` with production values:**
 
 ```bash
-# MongoDB Passwords (CHANGE THESE!)
+# ===========================================
+# MongoDB Configuration
+# ===========================================
 MONGO_ROOT_PASSWORD=YourSecureRootPassword123!
 MONGO_APP_PASSWORD=YourSecureAppPassword123!
 
-# JWT Secret (CHANGE THIS!)
+# ===========================================
+# JWT Security
+# ===========================================
 JWT_SECRET=YourVeryLongRandomJWTSecretKeyForProduction123456789
 
-# Email Configuration (for Gmail)
+# ===========================================
+# S3 Storage Configuration (REQUIRED)
+# ===========================================
+STORAGE_TYPE=S3
+S3_BUCKET_NAME=ensureu-assets-prod
+S3_REGION=ap-south-1
+S3_ACCESS_KEY=YOUR_AWS_ACCESS_KEY_ID
+S3_SECRET_KEY=YOUR_AWS_SECRET_ACCESS_KEY
+S3_PREFIX=uploads
+
+# ===========================================
+# Email Configuration (Gmail or Mailtrap)
+# ===========================================
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-gmail-app-password
 
-# For testing without real email, use Mailtrap:
-# Sign up at https://mailtrap.io (free tier available)
-# MAIL_HOST=smtp.mailtrap.io
-# MAIL_PORT=2525
-# MAIL_USERNAME=your-mailtrap-username
-# MAIL_PASSWORD=your-mailtrap-password
+# ===========================================
+# Google OAuth
+# ===========================================
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
-**Save and exit:** Press `Ctrl+X`, then `Y`, then `Enter`
+### 5.2 Update application-prod.properties
+
+```bash
+nano ensureu-service/src/main/resources/application-prod.properties
+```
+
+Ensure S3 configuration is set:
+
+```properties
+# File Storage - S3
+storage.type=S3
+storage.s3.bucket-name=${S3_BUCKET_NAME:ensureu-assets-prod}
+storage.s3.region=${S3_REGION:ap-south-1}
+storage.s3.access-key=${S3_ACCESS_KEY}
+storage.s3.secret-key=${S3_SECRET_KEY}
+storage.s3.prefix=${S3_PREFIX:uploads}
+```
+
+### 5.3 Frontend Configuration
+
+```bash
+cd ~/ensureu-next
+cp .env.example .env.local
+nano .env.local
+```
+
+**Update `.env.local`:**
+
+```bash
+NEXT_PUBLIC_API_URL=https://your-domain.com/api/
+# OR for IP-based deployment:
+# NEXT_PUBLIC_API_URL=http://YOUR_EC2_PUBLIC_IP:8282/api/
+```
 
 ---
 
-## Step 6: Deploy Application
+## Step 6: Deploy Backend
 
 ```bash
-# Make deployment script executable
+cd ~/ensureu
+
+# Make deploy script executable
 chmod +x deploy.sh
 
-# Run deployment
+# Deploy with production profile
 ./deploy.sh
+
+# Verify containers are running
+docker compose ps
+
+# Check logs
+docker compose logs -f app
 ```
 
-The script will:
-1. Build the Docker images
-2. Start MongoDB, App, and Nginx containers
-3. Show service status and logs
-
-**Wait 1-2 minutes** for the application to fully start.
+**Expected output:**
+```
+[S3Storage] Initialized S3 client for bucket: ensureu-assets-prod in region: ap-south-1
+[FileStorage] Using S3 storage
+```
 
 ---
 
-## Step 7: Verify Deployment
+## Step 7: Deploy Frontend
 
-### Check Service Status
 ```bash
-docker compose ps
+cd ~/ensureu-next
+
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+
+# Option 1: Run with PM2 (recommended)
+sudo npm install -g pm2
+pm2 start npm --name "ensureu-frontend" -- start
+pm2 save
+pm2 startup
+
+# Option 2: Run with Docker
+docker build -t ensureu-frontend .
+docker run -d -p 3000:3000 --name ensureu-frontend ensureu-frontend
 ```
 
-You should see 3 containers running:
-- ensureu-mongodb
-- ensureu-app
-- ensureu-nginx
+---
 
-### Check Application Logs
+## Step 8: Configure Nginx (Reverse Proxy)
+
+Update nginx configuration to serve both backend and frontend:
+
 ```bash
-# View all logs
-docker compose logs -f
-
-# View only app logs
-docker compose logs -f app
-
-# Press Ctrl+C to exit logs
+nano ~/ensureu/nginx/default.conf
 ```
 
-### Test Endpoints
+```nginx
+upstream backend {
+    server app:8282;
+}
 
-**From your local machine:**
+upstream frontend {
+    server host.docker.internal:3000;
+}
 
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # API routes → Backend
+    location /api/ {
+        proxy_pass http://backend/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # File upload size
+        client_max_body_size 50M;
+    }
+
+    # All other routes → Frontend
+    location / {
+        proxy_pass http://frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Restart nginx:
 ```bash
-# Replace YOUR_EC2_PUBLIC_IP with your actual IP
+docker compose restart nginx
+```
 
+---
+
+## Step 9: Verify Deployment
+
+### Test Backend
+```bash
 # Health check
 curl http://YOUR_EC2_PUBLIC_IP/api/actuator/health
 
-# Swagger UI (open in browser)
+# Swagger UI
 http://YOUR_EC2_PUBLIC_IP/api/swagger-ui.html
+```
 
-# Direct app access
-http://YOUR_EC2_PUBLIC_IP:8282/api/actuator/health
+### Test Frontend
+```bash
+http://YOUR_EC2_PUBLIC_IP:3000
+```
+
+### Test S3 Upload (CSV Paper Upload)
+1. Login to admin panel: `http://YOUR_EC2_PUBLIC_IP:3000/admin`
+2. Go to Paper Management
+3. Click "Upload CSV"
+4. Upload a sample CSV paper
+5. Verify CSV appears in S3 bucket: `s3://ensureu-assets-prod/uploads/csv-uploads/`
+
+---
+
+## Step 10: SSL/HTTPS Setup (Production)
+
+### Using Let's Encrypt with Certbot
+
+```bash
+# Install Certbot
+sudo apt-get install -y certbot python3-certbot-nginx
+
+# Stop nginx temporarily
+docker compose stop nginx
+
+# Get certificate
+sudo certbot certonly --standalone -d your-domain.com -d www.your-domain.com
+
+# Copy certificates
+sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ~/ensureu/nginx/ssl/
+sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ~/ensureu/nginx/ssl/
+
+# Update nginx config for HTTPS
+# Then restart
+docker compose up -d nginx
 ```
 
 ---
 
-## Step 8: Testing with Users
+## New Features Deployment Notes
 
-### Access URLs
+### CSV Paper Upload
+- CSV files are automatically uploaded to S3 before processing
+- Path: `s3://{bucket}/uploads/csv-uploads/{timestamp}_{filename}.csv`
+- Papers are saved as DRAFT status
+- Admin can review and activate papers
 
-Share these with your test users:
+### S3 Storage Structure
+```
+s3://ensureu-assets-prod/
+├── uploads/
+│   ├── csv-uploads/          # Uploaded CSV papers
+│   ├── papers/               # Paper images
+│   │   └── {category}/
+│   │       └── {paperId}/
+│   ├── question-bank/        # Question images
+│   └── blog/                 # Blog images
+```
 
-- **API Base URL:** `http://YOUR_EC2_PUBLIC_IP/api`
-- **Swagger Documentation:** `http://YOUR_EC2_PUBLIC_IP/api/swagger-ui.html`
-
-### Create Test Users
-
-You can use the API endpoints or Swagger UI to:
-1. Register new users
-2. Create test papers/questions
-3. Test authentication flow
+### Role-Based Access
+- **SUPERADMIN**: Full access (users, config, papers, CSV upload)
+- **ADMIN**: Dashboard, paper management, CSV upload
+- **TEACHER**: Paper editing, question management
+- **USER**: Take tests only
 
 ---
 
@@ -258,259 +414,130 @@ You can use the API endpoints or Swagger UI to:
 # All services
 docker compose logs -f
 
-# Specific service
+# Backend only
 docker compose logs -f app
-docker compose logs -f mongodb
-docker compose logs -f nginx
+
+# Frontend (if using PM2)
+pm2 logs ensureu-frontend
 ```
 
 ### Restart Services
 ```bash
-# Restart all
-docker compose restart
-
-# Restart specific service
+# Backend
 docker compose restart app
+
+# Frontend
+pm2 restart ensureu-frontend
 ```
 
-### Stop Services
+### Update Deployment
 ```bash
-docker compose down
-```
-
-### Start Services
-```bash
-docker compose up -d
-```
-
-### Update Application
-```bash
-# Pull latest code (if using git)
+# Backend
+cd ~/ensureu
 git pull
-
-# Redeploy
 ./deploy.sh
+
+# Frontend
+cd ~/ensureu-next
+git pull
+npm run build
+pm2 restart ensureu-frontend
 ```
 
-### Access MongoDB Shell
+### MongoDB Backup
 ```bash
-# Connect to MongoDB container
-docker exec -it ensureu-mongodb mongosh
+# Backup
+docker exec ensureu-mongodb mongodump --out=/tmp/backup --db=ensureu
+docker cp ensureu-mongodb:/tmp/backup ~/backups/backup-$(date +%Y%m%d)
 
-# Inside mongosh:
-use assessu
-show collections
-db.users.find().limit(5)
-exit
-```
-
-### Backup MongoDB Data
-```bash
-# Create backup directory
-mkdir -p ~/backups
-
-# Backup MongoDB data
-docker exec ensureu-mongodb mongodump --out=/tmp/backup --db=assessu
-
-# Copy backup from container to host
-docker cp ensureu-mongodb:/tmp/backup ~/backups/backup-$(date +%Y%m%d-%H%M%S)
-```
-
-### Restore MongoDB Data
-```bash
-# Copy backup to container
+# Restore
 docker cp ~/backups/backup-20240115 ensureu-mongodb:/tmp/restore
-
-# Restore data
-docker exec ensureu-mongodb mongorestore --db=assessu /tmp/restore/assessu
-```
-
----
-
-## Monitoring
-
-### Check Resource Usage
-```bash
-# System resources
-htop  # Install: sudo apt-get install htop
-
-# Docker stats
-docker stats
-
-# Disk usage
-df -h
-docker system df
-```
-
-### Set Up CloudWatch (Optional)
-
-Install CloudWatch agent for monitoring:
-
-```bash
-# Download and install CloudWatch agent
-wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-sudo dpkg -i -E ./amazon-cloudwatch-agent.deb
-
-# Configure and start (requires IAM role with CloudWatch permissions)
-# Follow: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
+docker exec ensureu-mongodb mongorestore --db=ensureu /tmp/restore/ensureu
 ```
 
 ---
 
 ## Troubleshooting
 
-### Application won't start
-
-**Check logs:**
+### S3 Upload Fails
 ```bash
-docker compose logs app
+# Check S3 configuration
+docker compose logs app | grep S3
+
+# Verify credentials
+aws s3 ls s3://ensureu-assets-prod/ --region ap-south-1
 ```
 
-**Common issues:**
-- MongoDB not ready: Wait 30 seconds and check again
-- Port already in use: `sudo lsof -i :8282`
-- Out of memory: Check with `free -h`, consider upgrading instance
+### CSV Upload Error
+- Ensure CSV is properly formatted (see `/docs/SSC_PAPER_CSV_FORMAT.md`)
+- Check for embedded newlines in question text
+- All fields with commas must be quoted
 
-### Cannot connect to application
-
-**Check if containers are running:**
+### Frontend Not Loading
 ```bash
-docker compose ps
+# Check if Next.js is running
+pm2 status
+
+# Check frontend logs
+pm2 logs ensureu-frontend
+
+# Verify API URL in .env.local
+cat ~/ensureu-next/.env.local
 ```
 
-**Check security group:**
-- Ensure ports 80, 443, 8282 are open
-- Verify source is 0.0.0.0/0 for public access
-
-**Check nginx:**
-```bash
-docker compose logs nginx
-```
-
-### MongoDB connection issues
-
-**Check MongoDB logs:**
+### MongoDB Connection Issues
 ```bash
 docker compose logs mongodb
-```
-
-**Verify credentials in .env match docker/mongo-init.js:**
-```bash
-cat .env | grep MONGO
-```
-
-### Out of disk space
-
-**Check disk usage:**
-```bash
-df -h
-docker system df
-```
-
-**Clean up:**
-```bash
-# Remove unused images
-docker image prune -a
-
-# Remove unused volumes (BE CAREFUL!)
-docker volume prune
+docker exec -it ensureu-mongodb mongosh
 ```
 
 ---
 
-## Security Best Practices
+## Cost Optimization
 
-### For Testing Environment
-
-1. **Change default passwords** in `.env`
-2. **Don't expose port 27017** publicly (already handled in docker-compose)
-3. **Restrict SSH access** to your IP only
-4. **Use strong JWT secret**
-5. **Enable HTTPS** before going to production (see next section)
-
-### For Production Migration
-
-When moving to production:
-
-1. **Get SSL certificate** (Let's Encrypt or ACM)
-2. **Use managed database** (MongoDB Atlas or DocumentDB)
-3. **Enable backups** (automated daily backups)
-4. **Set up monitoring** (CloudWatch, Datadog, etc.)
-5. **Use environment-specific secrets** (AWS Secrets Manager)
-6. **Enable auto-scaling** (move to ECS or Elastic Beanstalk)
-7. **Set up CI/CD** (GitHub Actions, Jenkins, CodePipeline)
-8. **Configure proper logging** (CloudWatch Logs, ELK stack)
-
----
-
-## Estimated Costs (Monthly)
-
-```
-EC2 t3.medium (744 hours): ~$30-35
-EBS Storage (30 GB gp3):   ~$2.40
-Elastic IP:                 Free (when attached)
-Data Transfer (5 GB out):  ~$0.45
--------------------------------------------
-Total:                     ~$33-38/month
-```
-
-**Cost Savings:**
-- Use Reserved Instances: Save 30-40%
-- Stop instance when not in use: Hourly billing
-- Use t3.small for very light testing: ~$15/month
-
----
-
-## Next Steps
-
-1. **Test all API endpoints** using Swagger UI
-2. **Create test data** (users, papers, questions)
-3. **Invite test users** and gather feedback
-4. **Monitor performance** and resource usage
-5. **Plan for scaling** based on user feedback
-
----
-
-## Support
-
-For issues:
-1. Check logs: `docker compose logs -f`
-2. Verify configuration: `cat .env`
-3. Check service health: `docker compose ps`
-4. Review application.properties in container
+| Resource | Cost/Month |
+|----------|-----------|
+| EC2 t3.medium (On-Demand) | ~$30-35 |
+| EC2 t3.medium (Reserved 1yr) | ~$20 |
+| EBS 50 GB gp3 | ~$4 |
+| S3 (10 GB) | ~$0.25 |
+| Data Transfer (10 GB) | ~$1 |
+| **Total** | **~$35-40** |
 
 ---
 
 ## Quick Reference
 
 ```bash
-# Deploy/Update
-./deploy.sh
+# Deploy backend
+cd ~/ensureu && ./deploy.sh
+
+# Deploy frontend
+cd ~/ensureu-next && npm run build && pm2 restart ensureu-frontend
 
 # View logs
 docker compose logs -f app
+pm2 logs ensureu-frontend
 
-# Restart
+# Restart all
 docker compose restart
+pm2 restart all
 
-# Stop
-docker compose down
-
-# Start
-docker compose up -d
+# Check S3
+aws s3 ls s3://ensureu-assets-prod/uploads/ --recursive
 
 # MongoDB backup
-docker exec ensureu-mongodb mongodump --out=/tmp/backup --db=assessu
-
-# Check resources
-docker stats
+docker exec ensureu-mongodb mongodump --out=/tmp/backup --db=ensureu
 ```
 
-Good luck with your testing! 🚀
+---
 
+## Support
 
-RUN Locally:
-export JAVA_HOME=$(/usr/libexec/java_home -v 11)
-cd /Users/dharmendrasingh/Documents/en/ensureu/ensureu/ensureu-service
-mvn spring-boot:run
+For issues:
+1. Check logs: `docker compose logs -f` and `pm2 logs`
+2. Verify S3 credentials and bucket permissions
+3. Check security group allows required ports
+4. Verify `.env` and `.env.local` configurations
 
+Good luck with your deployment! 🚀
