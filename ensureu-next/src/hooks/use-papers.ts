@@ -5,6 +5,7 @@ import { get, post } from '@/lib/api/client';
 import { API_URLS } from '@/lib/constants/api-urls';
 import { encrypt, decrypt } from '@/lib/utils/encryption';
 import { useUIStore } from '@/stores/ui-store';
+import { useAuthStore } from '@/stores/auth-store';
 import type {
   PaperData,
   PaperListItem,
@@ -298,6 +299,8 @@ export function useTestList(
   subCategory: PaperSubCategory,
   enabled = true
 ) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   return useQuery({
     queryKey: paperKeys.list(category, subCategory),
     queryFn: async () => {
@@ -324,7 +327,7 @@ export function useTestList(
       }
       return response.body || [];
     },
-    enabled,
+    enabled: enabled && isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -336,6 +339,8 @@ export function useMissedTests(
   subCategory: PaperSubCategory,
   enabled = true
 ) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   return useQuery({
     queryKey: paperKeys.missed(category, subCategory),
     queryFn: async () => {
@@ -354,7 +359,7 @@ export function useMissedTests(
       }
       return response.body || [];
     },
-    enabled,
+    enabled: enabled && isAuthenticated,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -366,6 +371,8 @@ export function useCompletedTests(
   subCategory: PaperSubCategory,
   enabled = true
 ) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   return useQuery({
     queryKey: paperKeys.completed(category, subCategory),
     queryFn: async () => {
@@ -384,7 +391,7 @@ export function useCompletedTests(
       }
       return response.body || [];
     },
-    enabled,
+    enabled: enabled && isAuthenticated,
     staleTime: 5 * 60 * 1000,
   });
 }

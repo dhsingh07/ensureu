@@ -3,6 +3,29 @@
 import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, AI_SERVICE_URL, MESSAGES } from '@/lib/constants/api-urls';
 
+// Import stores directly to avoid initialization timing issues
+// These are imported lazily to avoid SSR issues
+let authStoreModule: typeof import('@/stores/auth-store') | null = null;
+let uiStoreModule: typeof import('@/stores/ui-store') | null = null;
+
+// Lazy load stores (client-side only)
+function getAuthStore() {
+  if (typeof window === 'undefined') return null;
+  if (!authStoreModule) {
+    // Dynamic import isn't needed since we check window
+    authStoreModule = require('@/stores/auth-store');
+  }
+  return authStoreModule.useAuthStore;
+}
+
+function getUIStore() {
+  if (typeof window === 'undefined') return null;
+  if (!uiStoreModule) {
+    uiStoreModule = require('@/stores/ui-store');
+  }
+  return uiStoreModule.useUIStore;
+}
+
 // Create axios instance for main backend
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -21,26 +44,21 @@ export const aiServiceClient = axios.create({
   },
 });
 
-// Token management (will be connected to Zustand store)
-let getToken: (() => string | null) | null = null;
-let onUnauthorized: (() => void) | null = null;
-let showAlert: ((type: 'error' | 'success' | 'warning', message: string) => void) | null = null;
-
-// Initialize interceptors with store callbacks
+// Legacy initialization function (kept for backward compatibility)
 export function initializeApiClient(config: {
   getToken: () => string | null;
   onUnauthorized: () => void;
   showAlert: (type: 'error' | 'success' | 'warning', message: string) => void;
 }) {
-  getToken = config.getToken;
-  onUnauthorized = config.onUnauthorized;
-  showAlert = config.showAlert;
+  // No longer needed - stores are accessed directly
+  // Kept for backward compatibility
 }
 
 // Request interceptor - add JWT token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = getToken?.();
+    const authStore = getAuthStore();
+    const token = authStore?.getState().tokens?.token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -53,14 +71,17 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    const authStore = getAuthStore();
+    const uiStore = getUIStore();
+
     if (error.response?.status === 401) {
-      showAlert?.('error', MESSAGES.UNAUTHORIZED);
-      onUnauthorized?.();
+      uiStore?.getState().showAlert('error', MESSAGES.UNAUTHORIZED);
+      authStore?.getState().logout();
     } else if (!error.response) {
-      showAlert?.('error', MESSAGES.CONNECTION_ERROR);
+      uiStore?.getState().showAlert('error', MESSAGES.CONNECTION_ERROR);
     } else {
       const message = (error.response?.data as { message?: string })?.message || error.message;
-      showAlert?.('error', message);
+      uiStore?.getState().showAlert('error', message);
     }
     return Promise.reject(error);
   }
@@ -69,7 +90,8 @@ apiClient.interceptors.response.use(
 // AI Service interceptors (same pattern)
 aiServiceClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = getToken?.();
+    const authStore = getAuthStore();
+    const token = authStore?.getState().tokens?.token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -81,18 +103,21 @@ aiServiceClient.interceptors.request.use(
 aiServiceClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    const authStore = getAuthStore();
+    const uiStore = getUIStore();
+
     if (error.response?.status === 401) {
-      showAlert?.('error', MESSAGES.UNAUTHORIZED);
-      onUnauthorized?.();
+      uiStore?.getState().showAlert('error', MESSAGES.UNAUTHORIZED);
+      authStore?.getState().logout();
     } else if (error.response?.status === 403) {
-      showAlert?.('error', 'Access denied. You need SUPERADMIN privileges.');
+      uiStore?.getState().showAlert('error', 'Access denied. You need SUPERADMIN privileges.');
     } else if (!error.response) {
-      showAlert?.('error', 'AI Service unavailable. Please try again later.');
+      uiStore?.getState().showAlert('error', 'AI Service unavailable. Please try again later.');
     } else {
       const message = (error.response?.data as { detail?: string })?.detail ||
                       (error.response?.data as { message?: string })?.message ||
                       error.message;
-      showAlert?.('error', message);
+      uiStore?.getState().showAlert('error', message);
     }
     return Promise.reject(error);
   }
