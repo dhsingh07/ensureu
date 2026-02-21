@@ -15,7 +15,7 @@ function getAuthStore() {
     // Dynamic import isn't needed since we check window
     authStoreModule = require('@/stores/auth-store');
   }
-  return authStoreModule.useAuthStore;
+  return authStoreModule!.useAuthStore;
 }
 
 function getUIStore() {
@@ -23,7 +23,7 @@ function getUIStore() {
   if (!uiStoreModule) {
     uiStoreModule = require('@/stores/ui-store');
   }
-  return uiStoreModule.useUIStore;
+  return uiStoreModule!.useUIStore;
 }
 
 // Create axios instance for main backend
